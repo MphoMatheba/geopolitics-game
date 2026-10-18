@@ -6,7 +6,7 @@ namespace Geopolitics.Data.Models;
 public enum GameEventType
 {
     GameStarted, Reinforce, Transfer, AttackStarted, DiceRolled,
-    CountryConquered, AttackEnded, TurnSkipped, PlayerEliminated, GameWon
+    CountryConquered, AttackEnded, TurnSkipped, PlayerEliminated, GameWon, GameLost
 }
 
 public class GameEvent

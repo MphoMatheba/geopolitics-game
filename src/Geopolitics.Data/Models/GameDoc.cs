@@ -52,6 +52,10 @@ public class GameDoc
     public int Round { get; set; } = 1;
     public int CurrentPlayerIndex { get; set; }
     public int PendingReinforcements { get; set; }
+
+    // One attack per turn: set when an attack starts, cleared when the turn changes.
+    public bool HasAttackedThisTurn { get; set; }
+
     public ActiveAttack? ActiveAttack { get; set; }
 
     public List<PlayerState> Players { get; set; } = new();
