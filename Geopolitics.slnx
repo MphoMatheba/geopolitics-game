@@ -1,5 +1,6 @@
 <Solution>
   <Folder Name="/src/">
+    <Project Path="src/Geopolitics.Data/Geopolitics.Data.csproj" />
     <Project Path="src/Geopolitics.Engine/Geopolitics.Engine.csproj" />
     <Project Path="src/Geopolitics.Web/Geopolitics.Web.csproj" />
   </Folder>
