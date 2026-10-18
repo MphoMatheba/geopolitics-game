@@ -18,23 +18,31 @@ public class GameService(
 
         var game = GameFactory.Create(ownerUserId, humanName, countries, Random.Shared);
         TurnManager.BeginTurn(game);
-        game.LastEventSequence = 1;
-
-        await games.CreateAsync(game);   // the driver fills in game.Id
 
         var order = string.Join(", ", game.Players.Select(p => p.DisplayName));
-        await events.AppendAsync(new[]
+        var created = new List<GameEvent>
         {
-            new GameEvent
+            new()
             {
-                GameId = game.Id!,
-                Sequence = 1,
                 Round = 1,
                 Type = GameEventType.GameStarted,
                 PlayerId = TurnManager.CurrentPlayer(game).PlayerId,
                 Message = $"Game started. Turn order: {order}."
             }
-        });
+        };
+
+        // If an NPC goes first, play NPC turns until it is the human's turn.
+        created.AddRange(NpcTurnRunner.PlayUntilHumanTurn(game, dice));
+
+        for (int i = 0; i < created.Count; i++)
+            created[i].Sequence = i + 1;
+        game.LastEventSequence = created.Count;
+
+        await games.CreateAsync(game);   // the driver fills in game.Id
+
+        foreach (var e in created)
+            e.GameId = game.Id!;
+        await events.AppendAsync(created);
 
         return game;
     }
@@ -60,8 +68,9 @@ public class GameService(
         ApplyAsync(gameId, userId, (g, me) => GameActions.EndTurn(g, me));
 
     // Loads the game, checks the caller owns it, applies the move to the human
-    // player, then saves the game and its events. The version check on save
-    // rejects the move if the game changed in the meantime.
+    // player, then (if the turn has passed to an NPC) plays NPC turns until it
+    // is the human's turn again. Everything is saved in one go; the version
+    // check on save rejects the move if the game changed in the meantime.
     private async Task<GameActionResult> ApplyAsync(
         string gameId, string userId, Func<GameDoc, string, GameActionResult> action)
     {
@@ -76,7 +85,11 @@ public class GameService(
         if (!result.Ok)
             return result;
 
-        foreach (var e in result.Events)
+        var all = new List<GameEvent>(result.Events);
+        if (game.Status == GameStatus.InProgress && !TurnManager.CurrentPlayer(game).IsHuman)
+            all.AddRange(NpcTurnRunner.PlayUntilHumanTurn(game, dice));
+
+        foreach (var e in all)
         {
             e.GameId = game.Id!;
             e.Sequence = ++game.LastEventSequence;
@@ -85,7 +98,7 @@ public class GameService(
         if (!await games.SaveAsync(game))
             return GameActionResult.Fail("The game changed while you were acting. Please try again.");
 
-        await events.AppendAsync(result.Events);
-        return result;
+        await events.AppendAsync(all);
+        return GameActionResult.Success(all);
     }
 }
