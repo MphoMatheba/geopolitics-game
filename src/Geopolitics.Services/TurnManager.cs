@@ -52,6 +52,7 @@ public static class TurnManager
 
         game.ActiveAttack = null;
         game.Phase = TurnPhase.Action;
+        game.HasAttackedThisTurn = false;
 
         do
         {
