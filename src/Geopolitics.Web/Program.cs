@@ -1,29 +1,40 @@
+using Geopolitics.Data;
+using Geopolitics.Data.Repositories;
+
 var builder = WebApplication.CreateBuilder(args);
 
-// Add services to the container.
 builder.Services.AddControllersWithViews();
+
+// Database layer: settings come from user-secrets locally, environment variables in production.
+var mongoSettings = builder.Configuration.GetSection("Mongo").Get<MongoSettings>() ?? new MongoSettings();
+builder.Services.AddSingleton(new MongoContext(mongoSettings));
+builder.Services.AddSingleton<CountryCatalog>();
+builder.Services.AddSingleton<IUserRepository, MongoUserRepository>();
+builder.Services.AddSingleton<IGameRepository, MongoGameRepository>();
+builder.Services.AddSingleton<IEventRepository, MongoEventRepository>();
 
 var app = builder.Build();
 
-// Configure the HTTP request pipeline.
+// Fail fast, with a clear message, if the database is unreachable.
+var ctx = app.Services.GetRequiredService<MongoContext>();
+await ctx.PingAsync();
+await ctx.EnsureIndexesAsync();
+app.Logger.LogInformation("Connected to MongoDB and ensured indexes.");
+
 if (!app.Environment.IsDevelopment())
 {
     app.UseExceptionHandler("/Home/Error");
-    // The default HSTS value is 30 days. You may want to change this for production scenarios, see https://aka.ms/aspnetcore-hsts.
     app.UseHsts();
 }
 
 app.UseHttpsRedirection();
 app.UseRouting();
-
 app.UseAuthorization();
 
 app.MapStaticAssets();
-
 app.MapControllerRoute(
-    name: "default",
-    pattern: "{controller=Home}/{action=Index}/{id?}")
+        name: "default",
+        pattern: "{controller=Home}/{action=Index}/{id?}")
     .WithStaticAssets();
-
 
 app.Run();

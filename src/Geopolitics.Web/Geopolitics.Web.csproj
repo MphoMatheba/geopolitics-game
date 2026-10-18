@@ -1,13 +1,15 @@
-<Project Sdk="Microsoft.NET.Sdk.Web">
+﻿<Project Sdk="Microsoft.NET.Sdk.Web">
 
   <ItemGroup>
     <ProjectReference Include="..\Geopolitics.Engine\Geopolitics.Engine.csproj" />
+    <ProjectReference Include="..\Geopolitics.Data\Geopolitics.Data.csproj" />
   </ItemGroup>
 
   <PropertyGroup>
     <TargetFramework>net10.0</TargetFramework>
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
+    <UserSecretsId>c3a5a265-6238-4d0a-95fb-e63051a44a58</UserSecretsId>
   </PropertyGroup>
 
 </Project>
