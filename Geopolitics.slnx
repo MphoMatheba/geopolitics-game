@@ -2,9 +2,11 @@
   <Folder Name="/src/">
     <Project Path="src/Geopolitics.Data/Geopolitics.Data.csproj" />
     <Project Path="src/Geopolitics.Engine/Geopolitics.Engine.csproj" />
+    <Project Path="src/Geopolitics.Services/Geopolitics.Services.csproj" />
     <Project Path="src/Geopolitics.Web/Geopolitics.Web.csproj" />
   </Folder>
   <Folder Name="/tests/">
     <Project Path="tests/Geopolitics.Engine.Tests/Geopolitics.Engine.Tests.csproj" />
+    <Project Path="tests/Geopolitics.Services.Tests/Geopolitics.Services.Tests.csproj" />
   </Folder>
 </Solution>
