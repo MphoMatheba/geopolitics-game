@@ -3,6 +3,7 @@
   <ItemGroup>
     <ProjectReference Include="..\Geopolitics.Engine\Geopolitics.Engine.csproj" />
     <ProjectReference Include="..\Geopolitics.Data\Geopolitics.Data.csproj" />
+    <ProjectReference Include="..\Geopolitics.Services\Geopolitics.Services.csproj" />
   </ItemGroup>
 
   <PropertyGroup>

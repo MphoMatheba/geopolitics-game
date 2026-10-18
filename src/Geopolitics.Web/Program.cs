@@ -1,5 +1,6 @@
 using Geopolitics.Data;
 using Geopolitics.Data.Repositories;
+using Geopolitics.Services;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -12,6 +13,9 @@ builder.Services.AddSingleton<CountryCatalog>();
 builder.Services.AddSingleton<IUserRepository, MongoUserRepository>();
 builder.Services.AddSingleton<IGameRepository, MongoGameRepository>();
 builder.Services.AddSingleton<IEventRepository, MongoEventRepository>();
+
+// Game logic.
+builder.Services.AddSingleton<GameService>();
 
 var app = builder.Build();
 
