@@ -1,8 +1,21 @@
-﻿@{
-    ViewData["Title"] = "Home Page";
+@{
+    ViewData["Title"] = "Home";
 }
 
-<div class="text-center">
-    <h1 class="display-4">Welcome</h1>
-    <p>Learn about <a href="https://learn.microsoft.com/aspnet/core">building Web apps with ASP.NET Core</a>.</p>
+<div class="text-center py-5">
+    <h1 class="display-4">Geopolitics</h1>
+    <p class="lead">Take on nine rival nations and conquer the world, one dice roll at a time.</p>
+
+    @if (User.Identity?.IsAuthenticated == true)
+    {
+        <a class="btn btn-primary btn-lg me-2" asp-controller="Game" asp-action="New">Start a new game</a>
+        <a class="btn btn-outline-secondary btn-lg" asp-controller="Game" asp-action="My">My games</a>
+    }
+    else
+    {
+        <a class="btn btn-primary btn-lg me-2" asp-controller="Account" asp-action="Register">Sign up to play</a>
+        <a class="btn btn-outline-secondary btn-lg" asp-controller="Account" asp-action="Login">Log in</a>
+    }
+
+    <p class="text-muted mt-4">Anyone with a game's link can watch it live. Only its owner can play.</p>
 </div>
