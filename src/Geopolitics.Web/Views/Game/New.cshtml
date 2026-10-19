@@ -1,0 +1,22 @@
+@model NewGameViewModel
+@{
+    ViewData["Title"] = "New game";
+}
+
+<div class="row justify-content-center">
+    <div class="col-md-6">
+        <h1 class="h3 mb-3">Start a new game</h1>
+        <p class="text-muted">
+            Pick your country. Nine other countries are chosen at random. Your starting soldiers depend on
+            your country's population.
+        </p>
+        <form asp-action="Create" method="post">
+            <div asp-validation-summary="All" class="text-danger"></div>
+            <div class="mb-3">
+                <label asp-for="HomeCountryCode" class="form-label"></label>
+                <select asp-for="HomeCountryCode" asp-items="Model.Countries" class="form-select"></select>
+            </div>
+            <button type="submit" class="btn btn-primary">Start game</button>
+        </form>
+    </div>
+</div>

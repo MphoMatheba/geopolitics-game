@@ -1,0 +1,237 @@
+@model string
+@{
+    ViewData["Title"] = "Game";
+}
+
+@* A plain working page for testing the backend. The 3D interface will replace it. *@
+
+<div id="app" data-game-id="@Model">
+    <div class="d-flex justify-content-between align-items-center mb-2">
+        <h1 class="h3 mb-0">Geopolitics game</h1>
+        <span id="role" class="badge bg-secondary">Loading...</span>
+    </div>
+    <p id="status" class="lead"></p>
+
+    <div class="row">
+        <div class="col-lg-7">
+            <table class="table table-sm table-striped align-middle" id="countries">
+                <thead>
+                    <tr><th>Country</th><th>Owner</th><th class="text-end">Soldiers</th></tr>
+                </thead>
+                <tbody></tbody>
+            </table>
+        </div>
+
+        <div class="col-lg-5">
+            <div id="controls" class="card card-body mb-3 d-none">
+                <div id="msg" class="text-danger small mb-2"></div>
+
+                <div class="mb-3">
+                    <div class="fw-bold small">Place reinforcements</div>
+                    <div class="input-group input-group-sm">
+                        <select id="rf-country" class="form-select"></select>
+                        <input id="rf-count" type="number" min="1" value="1" class="form-control" style="max-width:5rem" />
+                        <button id="rf-go" class="btn btn-secondary">Place</button>
+                    </div>
+                </div>
+
+                <div class="mb-3">
+                    <div class="fw-bold small">Move soldiers</div>
+                    <div class="input-group input-group-sm">
+                        <select id="tf-from" class="form-select"></select>
+                        <select id="tf-to" class="form-select"></select>
+                        <input id="tf-count" type="number" min="1" value="1" class="form-control" style="max-width:5rem" />
+                        <button id="tf-go" class="btn btn-secondary">Move</button>
+                    </div>
+                </div>
+
+                <div class="mb-3">
+                    <div class="fw-bold small">Attack</div>
+                    <div class="input-group input-group-sm mb-2">
+                        <select id="at-from" class="form-select"></select>
+                        <select id="at-to" class="form-select"></select>
+                    </div>
+                    <button id="at-start" class="btn btn-danger btn-sm">Start attack</button>
+                    <button id="at-roll" class="btn btn-warning btn-sm">Roll dice</button>
+                    <button id="at-stop" class="btn btn-outline-danger btn-sm">Stop (ends turn)</button>
+                </div>
+
+                <button id="end-turn" class="btn btn-primary btn-sm">End turn</button>
+            </div>
+
+            <h2 class="h6">Event log</h2>
+            <ul id="log" class="list-unstyled small" style="max-height:420px;overflow:auto"></ul>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+<script>
+(function () {
+    const gameId = document.getElementById('app').dataset.gameId;
+    const $ = (id) => document.getElementById(id);
+    let snap = null;
+    let lastSeq = 0;
+    let busy = false;
+    const seen = new Set();
+
+    async function call(method, path, data) {
+        const options = { method: method, headers: {} };
+        if (method === 'POST') {
+            options.headers['Content-Type'] = 'application/json';
+            options.body = JSON.stringify(data || {});
+        }
+        const res = await fetch('/api/games/' + gameId + path, options);
+        let body = null;
+        try { body = await res.json(); } catch (e) { body = null; }
+        return { ok: res.ok, status: res.status, body: body };
+    }
+
+    function playerName(id) {
+        const p = snap.players.find(x => x.playerId === id);
+        return p ? p.name : id;
+    }
+
+    function fillSelect(select, countries) {
+        const keep = select.value;
+        select.innerHTML = '';
+        for (const c of countries) {
+            const o = document.createElement('option');
+            o.value = c.code;
+            o.textContent = c.name + ' (' + c.soldiers + ')';
+            select.appendChild(o);
+        }
+        if (Array.from(select.options).some(o => o.value === keep)) select.value = keep;
+    }
+
+    function render() {
+        if (!snap) return;
+        const human = snap.players.find(p => p.isHuman);
+
+        $('role').textContent = snap.isOwner ? 'Your game' : 'Spectating';
+        $('role').className = 'badge ' + (snap.isOwner ? 'bg-success' : 'bg-secondary');
+
+        let status;
+        if (snap.status === 'Won') status = 'Victory! The world is conquered.';
+        else if (snap.status === 'Lost') status = 'Defeat. The player was eliminated.';
+        else {
+            status = 'Round ' + snap.round + ' - ' + playerName(snap.currentPlayerId) + "'s turn";
+            if (snap.pendingReinforcements > 0) status += ' - ' + snap.pendingReinforcements + ' soldier(s) to place';
+        }
+        $('status').textContent = status;
+
+        const tbody = $('countries').querySelector('tbody');
+        tbody.innerHTML = '';
+        const order = (c) => snap.players.find(p => p.playerId === c.ownerPlayerId).turnOrder;
+        const rows = snap.countries.slice().sort((a, b) => order(a) - order(b) || a.name.localeCompare(b.name));
+        for (const c of rows) {
+            const tr = document.createElement('tr');
+            if (c.ownerPlayerId === snap.currentPlayerId) tr.className = 'table-warning';
+            const owner = playerName(c.ownerPlayerId);
+            [c.name, owner, c.soldiers].forEach((value, i) => {
+                const td = document.createElement('td');
+                td.textContent = value;
+                if (i === 2) td.className = 'text-end';
+                tr.appendChild(td);
+            });
+            tbody.appendChild(tr);
+        }
+
+        $('controls').classList.toggle('d-none', !snap.canPlay);
+        if (snap.canPlay) {
+            const mine = snap.countries.filter(c => c.ownerPlayerId === human.playerId);
+            const others = snap.countries.filter(c => c.ownerPlayerId !== human.playerId);
+            fillSelect($('rf-country'), mine);
+            fillSelect($('tf-from'), mine);
+            fillSelect($('tf-to'), mine);
+            fillSelect($('at-from'), mine);
+            fillSelect($('at-to'), others);
+
+            const attacking = snap.phase === 'Attacking';
+            const pending = snap.pendingReinforcements > 0;
+            $('rf-go').disabled = attacking || !pending;
+            $('tf-go').disabled = attacking || pending;
+            $('at-start').disabled = attacking || pending || snap.hasAttackedThisTurn;
+            $('at-roll').disabled = !attacking;
+            $('at-stop').disabled = !attacking;
+            $('end-turn').disabled = attacking || pending;
+        }
+    }
+
+    function addEvents(list) {
+        for (const e of list) {
+            if (seen.has(e.sequence)) continue;
+            seen.add(e.sequence);
+            if (e.sequence > lastSeq) lastSeq = e.sequence;
+
+            const li = document.createElement('li');
+            li.className = 'mb-2';
+            const main = document.createElement('div');
+            main.textContent = '[R' + e.round + '] ' + e.message;
+            li.appendChild(main);
+
+            if (e.attackerRolls && e.attackerRolls.length) {
+                const dice = document.createElement('div');
+                dice.className = 'text-muted';
+                dice.textContent = 'Dice: [' + e.attackerRolls.join(', ') + '] vs [' + e.defenderRolls.join(', ') + ']';
+                li.appendChild(dice);
+            }
+            if (e.justification) {
+                const why = document.createElement('div');
+                why.className = 'fst-italic text-primary';
+                why.textContent = 'Why: ' + e.justification;
+                li.appendChild(why);
+            }
+            $('log').prepend(li);
+        }
+    }
+
+    function showError(text) { $('msg').textContent = text; }
+
+    async function act(path, data) {
+        if (busy) return;
+        busy = true;
+        showError('');
+        const r = await call('POST', path, data);
+        busy = false;
+        if (!r.ok) {
+            if (r.status === 401) showError('Please log in again.');
+            else showError((r.body && r.body.error) || ('Request failed (' + r.status + ').'));
+            return;
+        }
+        if (r.body.game) snap = r.body.game;
+        addEvents(r.body.events || []);
+        render();
+    }
+
+    $('rf-go').onclick = () => act('/reinforce', { countryCode: $('rf-country').value, count: parseInt($('rf-count').value, 10) });
+    $('tf-go').onclick = () => act('/transfer', { fromCode: $('tf-from').value, toCode: $('tf-to').value, count: parseInt($('tf-count').value, 10) });
+    $('at-start').onclick = () => act('/attack', { attackerCode: $('at-from').value, defenderCode: $('at-to').value });
+    $('at-roll').onclick = () => act('/roll');
+    $('at-stop').onclick = () => act('/stop');
+    $('end-turn').onclick = () => act('/end');
+
+    async function refresh() {
+        if (busy) return;
+        const g = await call('GET', '');
+        if (!g.ok) {
+            $('status').textContent = g.status === 404 ? 'Game not found.' : 'Could not load the game.';
+            return;
+        }
+        if (!snap || g.body.lastEventSequence !== snap.lastEventSequence) {
+            snap = g.body;
+            render();
+        }
+        let batch;
+        do {
+            const e = await call('GET', '/events?after=' + lastSeq);
+            batch = e.ok ? e.body : [];
+            addEvents(batch);
+        } while (batch.length === 500);
+    }
+
+    refresh();
+    setInterval(refresh, 2000);
+})();
+</script>
+}
