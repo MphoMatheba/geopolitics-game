@@ -1,7 +1,11 @@
+using System.Threading.RateLimiting;
 using Geopolitics.Data;
 using Geopolitics.Data.Repositories;
 using Geopolitics.Engine;
 using Geopolitics.Services;
+using Geopolitics.Web.Security;
+using Microsoft.AspNetCore.Authentication.Cookies;
+using Microsoft.AspNetCore.RateLimiting;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -19,6 +23,58 @@ builder.Services.AddSingleton<IEventRepository, MongoEventRepository>();
 builder.Services.AddSingleton<IDice, RandomDice>();
 builder.Services.AddSingleton<GameService>();
 
+// Accounts and login (cookie authentication).
+builder.Services.AddSingleton<AccountService>();
+builder.Services
+    .AddAuthentication(CookieAuthenticationDefaults.AuthenticationScheme)
+    .AddCookie(options =>
+    {
+        options.Cookie.Name = "geopolitics.auth";
+        options.Cookie.HttpOnly = true;                       // not readable by scripts
+        options.Cookie.SameSite = SameSiteMode.Lax;           // not sent on cross-site POSTs
+        options.Cookie.SecurePolicy = builder.Environment.IsDevelopment()
+            ? CookieSecurePolicy.SameAsRequest
+            : CookieSecurePolicy.Always;                      // HTTPS only in production
+        options.LoginPath = "/Account/Login";
+        options.AccessDeniedPath = "/Account/Login";
+        options.SlidingExpiration = true;
+        options.ExpireTimeSpan = TimeSpan.FromDays(7);
+
+        // API calls get a plain 401/403 instead of a redirect to the login page.
+        options.Events.OnRedirectToLogin = context =>
+        {
+            if (context.Request.Path.StartsWithSegments("/api"))
+                context.Response.StatusCode = StatusCodes.Status401Unauthorized;
+            else
+                context.Response.Redirect(context.RedirectUri);
+            return Task.CompletedTask;
+        };
+        options.Events.OnRedirectToAccessDenied = context =>
+        {
+            if (context.Request.Path.StartsWithSegments("/api"))
+                context.Response.StatusCode = StatusCodes.Status403Forbidden;
+            else
+                context.Response.Redirect(context.RedirectUri);
+            return Task.CompletedTask;
+        };
+    });
+builder.Services.AddAuthorization();
+
+// Slow down password guessing: 10 sign-up / login attempts per minute per address.
+builder.Services.AddRateLimiter(options =>
+{
+    options.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
+    options.AddPolicy("auth", httpContext =>
+        RateLimitPartition.GetFixedWindowLimiter(
+            httpContext.Connection.RemoteIpAddress?.ToString() ?? "unknown",
+            _ => new FixedWindowRateLimiterOptions
+            {
+                PermitLimit = 10,
+                Window = TimeSpan.FromMinutes(1),
+                QueueLimit = 0
+            }));
+});
+
 var app = builder.Build();
 
 // Fail fast, with a clear message, if the database is unreachable.
@@ -35,7 +91,9 @@ if (!app.Environment.IsDevelopment())
 
 app.UseHttpsRedirection();
 app.UseRouting();
-app.UseAuthorization();
+app.UseRateLimiter();
+app.UseAuthentication();   // who is this?
+app.UseAuthorization();    // are they allowed?
 
 app.MapStaticAssets();
 app.MapControllerRoute(
