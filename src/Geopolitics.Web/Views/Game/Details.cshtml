@@ -182,6 +182,12 @@
                 why.textContent = 'Why: ' + e.justification;
                 li.appendChild(why);
             }
+            if (e.commentary) {
+                const say = document.createElement('div');
+                say.className = 'fst-italic text-success';
+                say.textContent = '\u201C' + e.commentary + '\u201D';
+                li.appendChild(say);
+            }
             $('log').prepend(li);
         }
     }
