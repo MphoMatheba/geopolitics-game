@@ -9,7 +9,8 @@ public class GameService(
     IGameRepository games,
     IEventRepository events,
     CountryCatalog catalog,
-    IDice dice)
+    IDice dice,
+    CommentaryService commentary)
 {
     public async Task<GameDoc> CreateGameAsync(string ownerUserId, string humanName, string homeCountryCode)
     {
@@ -33,6 +34,8 @@ public class GameService(
 
         // If an NPC goes first, play NPC turns until it is the human's turn.
         created.AddRange(NpcTurnRunner.PlayUntilHumanTurn(game, dice));
+
+        await commentary.AnnotateAsync(game, created);
 
         for (int i = 0; i < created.Count; i++)
             created[i].Sequence = i + 1;
@@ -79,8 +82,9 @@ public class GameService(
 
     // Loads the game, checks the caller owns it, applies the move to the human
     // player, then (if the turn has passed to an NPC) plays NPC turns until it
-    // is the human's turn again. Everything is saved in one go; the version
-    // check on save rejects the move if the game changed in the meantime.
+    // is the human's turn again. Battle commentary is added, then everything is
+    // saved in one go; the version check on save rejects the move if the game
+    // changed in the meantime.
     private async Task<GameActionResult> ApplyAsync(
         string gameId, string userId, Func<GameDoc, string, GameActionResult> action)
     {
@@ -98,6 +102,8 @@ public class GameService(
         var all = new List<GameEvent>(result.Events);
         if (game.Status == GameStatus.InProgress && !TurnManager.CurrentPlayer(game).IsHuman)
             all.AddRange(NpcTurnRunner.PlayUntilHumanTurn(game, dice));
+
+        await commentary.AnnotateAsync(game, all);
 
         foreach (var e in all)
         {
