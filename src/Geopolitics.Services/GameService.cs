@@ -47,7 +47,17 @@ public class GameService(
         return game;
     }
 
-    // ---------- player actions ----------
+    // ---------- reading (public) ----------
+
+    public Task<GameDoc?> GetGameAsync(string id) => games.GetAsync(id);
+
+    public Task<List<GameEvent>> GetEventsAfterAsync(string id, int afterSequence) =>
+        events.GetAfterAsync(id, afterSequence);
+
+    public Task<List<GameDoc>> ListGamesAsync(string ownerUserId) =>
+        games.ListByOwnerAsync(ownerUserId);
+
+    // ---------- player actions (owner only) ----------
 
     public Task<GameActionResult> ReinforceAsync(string gameId, string userId, string countryCode, int count) =>
         ApplyAsync(gameId, userId, (g, me) => GameActions.Reinforce(g, me, countryCode, count));
@@ -76,9 +86,9 @@ public class GameService(
     {
         var game = await games.GetAsync(gameId);
         if (game == null)
-            return GameActionResult.Fail("Game not found.");
+            return GameActionResult.Fail("Game not found.", ActionError.NotFound);
         if (game.OwnerUserId != userId)
-            return GameActionResult.Fail("This is not your game.");
+            return GameActionResult.Fail("This is not your game.", ActionError.Forbidden);
 
         var human = game.Players.First(p => p.IsHuman);
         var result = action(game, human.PlayerId);
@@ -96,7 +106,8 @@ public class GameService(
         }
 
         if (!await games.SaveAsync(game))
-            return GameActionResult.Fail("The game changed while you were acting. Please try again.");
+            return GameActionResult.Fail(
+                "The game changed while you were acting. Please try again.", ActionError.Conflict);
 
         await events.AppendAsync(all);
         return GameActionResult.Success(all);
