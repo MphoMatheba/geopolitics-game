@@ -1,4 +1,5 @@
 using Geopolitics.Data.Models;
+using MongoDB.Bson;
 using MongoDB.Driver;
 
 namespace Geopolitics.Data.Repositories;
@@ -11,8 +12,12 @@ public class MongoUserRepository(MongoContext ctx) : IUserRepository
         return await ctx.Users.Find(u => u.UsernameNormalized == normalized).FirstOrDefaultAsync();
     }
 
-    public async Task<UserDoc?> GetByIdAsync(string id) =>
-        await ctx.Users.Find(u => u.Id == id).FirstOrDefaultAsync();
+    // A malformed id (for example from a mistyped URL) simply means "not found".
+    public async Task<UserDoc?> GetByIdAsync(string id)
+    {
+        if (!ObjectId.TryParse(id, out _)) return null;
+        return await ctx.Users.Find(u => u.Id == id).FirstOrDefaultAsync();
+    }
 
     public async Task<bool> CreateAsync(UserDoc user)
     {
@@ -33,8 +38,11 @@ public class MongoGameRepository(MongoContext ctx) : IGameRepository
 {
     public async Task CreateAsync(GameDoc game) => await ctx.Games.InsertOneAsync(game);
 
-    public async Task<GameDoc?> GetAsync(string id) =>
-        await ctx.Games.Find(g => g.Id == id).FirstOrDefaultAsync();
+    public async Task<GameDoc?> GetAsync(string id)
+    {
+        if (!ObjectId.TryParse(id, out _)) return null;
+        return await ctx.Games.Find(g => g.Id == id).FirstOrDefaultAsync();
+    }
 
     public async Task<List<GameDoc>> ListByOwnerAsync(string ownerUserId) =>
         await ctx.Games.Find(g => g.OwnerUserId == ownerUserId)
@@ -66,7 +74,10 @@ public class MongoEventRepository(MongoContext ctx) : IEventRepository
         if (list.Count > 0) await ctx.Events.InsertManyAsync(list);
     }
 
-    public async Task<List<GameEvent>> GetAfterAsync(string gameId, int afterSequence, int limit = 500) =>
-        await ctx.Events.Find(e => e.GameId == gameId && e.Sequence > afterSequence)
+    public async Task<List<GameEvent>> GetAfterAsync(string gameId, int afterSequence, int limit = 500)
+    {
+        if (!ObjectId.TryParse(gameId, out _)) return new List<GameEvent>();
+        return await ctx.Events.Find(e => e.GameId == gameId && e.Sequence > afterSequence)
             .SortBy(e => e.Sequence).Limit(limit).ToListAsync();
+    }
 }
