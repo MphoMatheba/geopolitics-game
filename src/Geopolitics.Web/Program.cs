@@ -19,6 +19,22 @@ builder.Services.AddSingleton<IUserRepository, MongoUserRepository>();
 builder.Services.AddSingleton<IGameRepository, MongoGameRepository>();
 builder.Services.AddSingleton<IEventRepository, MongoEventRepository>();
 
+// AI battle commentary. Without an API key the built-in commentary is used.
+var anthropic = builder.Configuration.GetSection("Anthropic").Get<AnthropicSettings>() ?? new AnthropicSettings();
+bool aiCommentary = !string.IsNullOrWhiteSpace(anthropic.ApiKey);
+if (aiCommentary)
+{
+    builder.Services.AddSingleton<ICommentator>(_ => new ClaudeCommentator(
+        new HttpClient(new SocketsHttpHandler { PooledConnectionLifetime = TimeSpan.FromMinutes(5) })
+        {
+            Timeout = TimeSpan.FromSeconds(anthropic.TimeoutSeconds)
+        },
+        anthropic));
+}
+builder.Services.AddSingleton(sp => new CommentaryService(
+    sp.GetService<ICommentator>(),
+    TimeSpan.FromSeconds(anthropic.TimeoutSeconds)));
+
 // Game logic.
 builder.Services.AddSingleton<IDice, RandomDice>();
 builder.Services.AddSingleton<GameService>();
@@ -82,6 +98,8 @@ var ctx = app.Services.GetRequiredService<MongoContext>();
 await ctx.PingAsync();
 await ctx.EnsureIndexesAsync();
 app.Logger.LogInformation("Connected to MongoDB and ensured indexes.");
+app.Logger.LogInformation("Battle commentary: {Mode}",
+    aiCommentary ? $"Claude ({anthropic.Model})" : "built-in text (no Anthropic API key configured)");
 
 if (!app.Environment.IsDevelopment())
 {
