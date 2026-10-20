@@ -31,6 +31,11 @@ public class GameEvent
     public int AttackerLosses { get; set; }
     public int DefenderLosses { get; set; }
 
+    // Details for reinforce / transfer / conquest events, so a client can replay them.
+    public string? FromCode { get; set; }
+    public string? ToCode { get; set; }
+    public int Count { get; set; }
+
     public string Message { get; set; } = "";
     public string? Justification { get; set; }   // NPC reasoning shown to the player
     public string? Commentary { get; set; }      // LLM battle commentary

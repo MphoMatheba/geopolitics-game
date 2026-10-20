@@ -66,11 +66,11 @@ public static class GameActions
         country.Soldiers += count;
         g.PendingReinforcements -= count;
 
-        return GameActionResult.Success(new[]
-        {
-            Ev(g, GameEventType.Reinforce, playerId,
-               $"{Name(g, playerId)} placed {count} soldier(s) in {country.Name}.")
-        });
+        var placed = Ev(g, GameEventType.Reinforce, playerId,
+            $"{Name(g, playerId)} placed {count} soldier(s) in {country.Name}.");
+        placed.ToCode = country.Code;
+        placed.Count = count;
+        return GameActionResult.Success(new[] { placed });
     }
 
     public static GameActionResult Transfer(GameDoc g, string playerId, string fromCode, string toCode, int count)
@@ -104,11 +104,12 @@ public static class GameActions
         from.Soldiers = a.Soldiers;
         to.Soldiers = b.Soldiers;
 
-        return GameActionResult.Success(new[]
-        {
-            Ev(g, GameEventType.Transfer, playerId,
-               $"{Name(g, playerId)} moved {count} soldier(s) from {from.Name} to {to.Name}.")
-        });
+        var moved = Ev(g, GameEventType.Transfer, playerId,
+            $"{Name(g, playerId)} moved {count} soldier(s) from {from.Name} to {to.Name}.");
+        moved.FromCode = from.Code;
+        moved.ToCode = to.Code;
+        moved.Count = count;
+        return GameActionResult.Success(new[] { moved });
     }
 
     public static GameActionResult StartAttack(GameDoc g, string playerId, string attackerCode, string defenderCode)
@@ -188,9 +189,12 @@ public static class GameActions
                 int reward = BattleEngine.ConquestReward(attack.DefenderSoldiersAtStart);
                 defender.OwnerPlayerId = playerId;
                 defender.Soldiers = reward;
-                events.Add(Ev(g, GameEventType.CountryConquered, playerId,
+                var conquered = Ev(g, GameEventType.CountryConquered, playerId,
                     $"{name} conquered {defender.Name} and gains {reward} soldier(s) there.",
-                    attacker.Code, defender.Code));
+                    attacker.Code, defender.Code);
+                conquered.ToCode = defender.Code;
+                conquered.Count = reward;
+                events.Add(conquered);
                 EndAttack(g);
 
                 var alreadyOut = g.Players.Where(p => p.IsEliminated).Select(p => p.PlayerId).ToHashSet();

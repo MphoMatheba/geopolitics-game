@@ -24,7 +24,10 @@ public record EventView(
     int DefenderLosses,
     string Message,
     string? Justification,
-    string? Commentary);
+    string? Commentary,
+    string? FromCode = null,
+    string? ToCode = null,
+    int Count = 0);
 
 public record GameSnapshot(
     string Id,
@@ -94,5 +97,8 @@ public static class GameSnapshotFactory
         e.DefenderLosses,
         e.Message,
         e.Justification,
-        e.Commentary);
+        e.Commentary,
+        e.FromCode,
+        e.ToCode,
+        e.Count);
 }
