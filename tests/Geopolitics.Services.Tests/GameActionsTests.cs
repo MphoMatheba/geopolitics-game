@@ -247,3 +247,20 @@ public class GameActionsTests
         Assert.Contains(result.Events, e => e.Type == GameEventType.GameWon);
     }
 }
+
+// Events carry enough detail for a client to replay them step by step.
+public class EventDetailTests
+{
+    [Fact]
+    public void Reinforce_event_records_the_country_and_count()
+    {
+        var (game, me, mine, _) = Fixture.Setup(3, 3);
+        game.Round = 2;
+        TurnManager.BeginTurn(game);
+
+        var ev = GameActions.Reinforce(game, me, mine.Code, 2).Events.Single();
+
+        Assert.Equal(mine.Code, ev.ToCode);
+        Assert.Equal(2, ev.Count);
+    }
+}
