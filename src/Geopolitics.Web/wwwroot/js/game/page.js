@@ -234,6 +234,10 @@ function addLog(ev) {
     while (log.children.length > 300) log.lastChild.remove();
 }
 
+// How long the 3D effect for an event may run: a little less than its pause,
+// so it finishes before the next event starts (fast-forward shortens both).
+const animationMs = (ev) => Math.round(playback.delayFor(ev) * 0.9);
+
 function showEvent(ev, board) {
     paintBoard(board);
     addLog(ev);
@@ -255,17 +259,26 @@ function showEvent(ev, board) {
         case 'DiceRolled':
             $('battle').classList.remove('d-none');
             showDice(ev);
+            if (globe) globe.rollDice(ev.attackerCode, ev.defenderCode, ev.attackerRolls, ev.defenderRolls, animationMs(ev));
             break;
         case 'CountryConquered':
-            if (globe) { globe.flash(ev.toCode, colour); globe.focusOn([ev.toCode]); }
+            if (globe) {
+                globe.sendTroops(ev.attackerCode, ev.toCode, ev.count, colour, animationMs(ev));
+                globe.focusOn([ev.attackerCode, ev.toCode]);
+            }
             toast(ev.message);
             break;
         case 'AttackEnded':
             if (globe) globe.clearBattle();
             break;
         case 'Reinforce':
+            if (globe) { globe.dropReinforcements(ev.toCode, ev.count, colour, animationMs(ev)); globe.focusOn([ev.toCode]); }
+            break;
         case 'Transfer':
-            if (globe) { globe.flash(ev.toCode, colour); globe.focusOn([ev.toCode]); }
+            if (globe) {
+                globe.sendTroops(ev.fromCode, ev.toCode, ev.count, colour, animationMs(ev));
+                globe.focusOn([ev.fromCode, ev.toCode]);
+            }
             break;
         case 'PlayerEliminated':
         case 'GameWon':
@@ -289,7 +302,7 @@ async function waitUntilIdle() {
 function settle() {
     if (latest) snap = latest;
     playback.reset(snap);
-    if (globe) { globe.clearBattle(); }
+    if (globe) { globe.clearBattle(); globe.clearEffects(); }
     $('battle').classList.add('d-none');
     $('now').textContent = '';
     if (snap.canPlay) {                 // fast-forward lasts until it is the player's turn again
