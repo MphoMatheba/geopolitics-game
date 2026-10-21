@@ -60,5 +60,53 @@
         return 0.04 + 0.11 * Math.min(1, Math.sqrt(Math.max(0, soldiers)) / 6);
     }
 
-    return { PALETTE, playerColor, latLonToXYZ, arcPoints, isFacing, markerHeight, unit, len, dot };
+    // ---- dice and moving soldiers ----
+
+    // Box faces in three.js order: +x, -x, +y, -y, +z, -z. Opposite faces add up to 7.
+    const DIE_FACE_VALUES = [3, 4, 1, 6, 2, 5];
+    const DIE_FACE_NORMALS = [
+        { x: 1, y: 0, z: 0 }, { x: -1, y: 0, z: 0 }, { x: 0, y: 1, z: 0 },
+        { x: 0, y: -1, z: 0 }, { x: 0, y: 0, z: 1 }, { x: 0, y: 0, z: -1 }
+    ];
+
+    // Direction (in the die's own frame) of the face that shows this value.
+    function dieFaceNormal(value) {
+        return DIE_FACE_NORMALS[DIE_FACE_VALUES.indexOf(value)];
+    }
+
+    // Pip positions on a face, as fractions of its width and height.
+    const PIPS = {
+        1: [[0.5, 0.5]],
+        2: [[0.25, 0.25], [0.75, 0.75]],
+        3: [[0.25, 0.25], [0.5, 0.5], [0.75, 0.75]],
+        4: [[0.25, 0.25], [0.75, 0.25], [0.25, 0.75], [0.75, 0.75]],
+        5: [[0.25, 0.25], [0.75, 0.25], [0.5, 0.5], [0.25, 0.75], [0.75, 0.75]],
+        6: [[0.25, 0.25], [0.75, 0.25], [0.25, 0.5], [0.75, 0.5], [0.25, 0.75], [0.75, 0.75]]
+    };
+
+    // Who wins each pair of dice: the higher roll wins, a tie changes nothing.
+    // Same rule as the server's battle engine; used only to colour the dice.
+    function diceOutcomes(attackerRolls, defenderRolls) {
+        const pairs = Math.min(attackerRolls.length, defenderRolls.length);
+        const attacker = [], defender = [];
+        for (let i = 0; i < pairs; i++) {
+            const a = attackerRolls[i], d = defenderRolls[i];
+            attacker.push(a > d ? 'win' : a < d ? 'lose' : 'tie');
+            defender.push(d > a ? 'win' : d < a ? 'lose' : 'tie');
+        }
+        return { attacker, defender };
+    }
+
+    // The point a fraction u (0 to 1) of the way along a path of points.
+    function pointAlong(points, u) {
+        const t = Math.min(1, Math.max(0, u)) * (points.length - 1);
+        const i = Math.min(points.length - 2, Math.floor(t));
+        const f = t - i, a = points[i], b = points[i + 1];
+        return { x: a.x + (b.x - a.x) * f, y: a.y + (b.y - a.y) * f, z: a.z + (b.z - a.z) * f };
+    }
+
+    return {
+        PALETTE, playerColor, latLonToXYZ, arcPoints, isFacing, markerHeight, unit, len, dot,
+        DIE_FACE_VALUES, dieFaceNormal, PIPS, diceOutcomes, pointAlong
+    };
 });
