@@ -55,3 +55,52 @@ test('the human is gold and NPCs get different non-gold colours', () => {
     assert.equal(new Set(colours).size, 9);
     assert.ok(!colours.includes(geo.PALETTE[0]));
 });
+
+test('every value 1-6 appears on exactly one die face and opposite faces add up to 7', () => {
+    assert.deepEqual([...geo.DIE_FACE_VALUES].sort(), [1, 2, 3, 4, 5, 6]);
+    for (let i = 0; i < 6; i += 2) assert.equal(geo.DIE_FACE_VALUES[i] + geo.DIE_FACE_VALUES[i + 1], 7);
+});
+
+test('the face normal of each value points along one axis, and different values differ', () => {
+    const seen = new Set();
+    for (let v = 1; v <= 6; v++) {
+        const n = geo.dieFaceNormal(v);
+        near(geo.len(n), 1);
+        seen.add(`${n.x},${n.y},${n.z}`);
+    }
+    assert.equal(seen.size, 6);
+});
+
+test('each die face has as many pips as its value, inside the face', () => {
+    for (let v = 1; v <= 6; v++) {
+        assert.equal(geo.PIPS[v].length, v);
+        for (const [x, y] of geo.PIPS[v]) assert.ok(x > 0 && x < 1 && y > 0 && y < 1);
+    }
+});
+
+test('the higher die wins each pair and a tie changes nothing', () => {
+    const r = geo.diceOutcomes([1, 4, 3], [2, 3, 3]);
+    assert.deepEqual(r.attacker, ['lose', 'win', 'tie']);
+    assert.deepEqual(r.defender, ['win', 'lose', 'tie']);
+});
+
+test('only paired dice are compared when the sides roll different numbers', () => {
+    const r = geo.diceOutcomes([6, 5], [1]);
+    assert.equal(r.attacker.length, 1);
+    assert.equal(r.defender.length, 1);
+});
+
+test('pointAlong starts at the first point, ends at the last and finds the middle', () => {
+    const pts = [{ x: 0, y: 0, z: 0 }, { x: 2, y: 0, z: 0 }, { x: 2, y: 4, z: 0 }];
+    assert.deepEqual(geo.pointAlong(pts, 0), { x: 0, y: 0, z: 0 });
+    assert.deepEqual(geo.pointAlong(pts, 1), { x: 2, y: 4, z: 0 });
+    assert.deepEqual(geo.pointAlong(pts, 0.25), { x: 1, y: 0, z: 0 });
+    assert.deepEqual(geo.pointAlong(pts, 0.75), { x: 2, y: 2, z: 0 });
+});
+
+test('pointAlong stays on the path when u is out of range, and works with two points', () => {
+    const two = [{ x: 0, y: 0, z: 0 }, { x: 0, y: 10, z: 0 }];
+    assert.deepEqual(geo.pointAlong(two, -1), { x: 0, y: 0, z: 0 });
+    assert.deepEqual(geo.pointAlong(two, 5), { x: 0, y: 10, z: 0 });
+    assert.deepEqual(geo.pointAlong(two, 0.5), { x: 0, y: 5, z: 0 });
+});
