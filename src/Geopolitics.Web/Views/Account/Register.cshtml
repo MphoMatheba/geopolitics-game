@@ -3,9 +3,16 @@
     ViewData["Title"] = "Sign up";
 }
 
-<div class="row justify-content-center">
-    <div class="col-md-5">
-        <h1 class="h3 mb-3">Sign up</h1>
+<link rel="stylesheet" href="~/css/wall.css" asp-append-version="true" />
+
+<div class="wall">
+    <partial name="_Wall" />
+
+    <div class="wall-slot">
+    <partial name="_WallCracks" />
+    <div class="wall-card">
+        <h1>Sign up</h1>
+        <p class="tagline">Join the fight for the world</p>
         <form asp-action="Register" method="post">
             <div asp-validation-summary="ModelOnly" class="text-danger"></div>
             <div class="mb-3">
@@ -25,8 +32,9 @@
                 <input asp-for="ConfirmPassword" class="form-control" autocomplete="new-password" />
                 <span asp-validation-for="ConfirmPassword" class="text-danger"></span>
             </div>
-            <button type="submit" class="btn btn-primary">Create account</button>
+            <button type="submit" class="btn btn-spray">Create account</button>
         </form>
+    </div>
     </div>
 </div>
 
