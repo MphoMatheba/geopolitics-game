@@ -1,0 +1,257 @@
+/* Log in / sign up: a cartoon brick wall with animated graffiti.
+   The artwork is generated (tools/make-wall-art.py): bricks in wwwroot/img, the rest in
+   Views/Shared/_Wall.cshtml and _WallCracks.cshtml. All of it is decorative.
+   Add the class "wall--purple" to the .wall element for the purple wall. */
+
+@font-face {
+  font-family: "Permanent Marker";
+  src: url("/fonts/PermanentMarker-Regular.ttf") format("truetype");
+  font-display: swap;
+}
+
+/* ---------- the wall ---------- */
+.wall {
+  position: relative;
+  min-height: 760px;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  padding: 0 1rem 3.6rem;
+  border-radius: .6rem;
+  overflow: hidden;
+  background-color: #1d1411;
+  background-image:
+    radial-gradient(ellipse at 50% 45%, rgba(0, 0, 0, 0) 38%, rgba(0, 0, 0, .62) 100%),
+    radial-gradient(ellipse 260px 160px at 18% 28%, rgba(0, 0, 0, .26), transparent 70%),
+    radial-gradient(ellipse 300px 190px at 82% 62%, rgba(0, 0, 0, .28), transparent 70%),
+    radial-gradient(ellipse 220px 140px at 60% 14%, rgba(255, 220, 190, .07), transparent 70%),
+    url("/img/brick-red.svg");
+  background-size: auto, auto, auto, auto, 490px 276px;
+  animation: wall-shake .5s linear .4s both;
+}
+.wall--purple { background-color: #1a1220; background-image:
+    radial-gradient(ellipse at 50% 45%, rgba(0, 0, 0, 0) 38%, rgba(0, 0, 0, .62) 100%),
+    radial-gradient(ellipse 260px 160px at 18% 28%, rgba(0, 0, 0, .26), transparent 70%),
+    radial-gradient(ellipse 300px 190px at 82% 62%, rgba(0, 0, 0, .28), transparent 70%),
+    radial-gradient(ellipse 220px 140px at 60% 14%, rgba(255, 220, 190, .07), transparent 70%),
+    url("/img/brick-purple.svg"); }
+
+/* the wall shakes when the sign hits it */
+@keyframes wall-shake {
+  0%, 100% { transform: translate(0, 0); }
+  15% { transform: translate(-5px, 3px); }
+  30% { transform: translate(4px, -3px); }
+  45% { transform: translate(-3px, -2px); }
+  60% { transform: translate(3px, 2px); }
+  80% { transform: translate(-1px, 1px); }
+}
+
+/* a lamp sweeping slowly across the wall */
+.wall::before {
+  content: "";
+  position: absolute;
+  top: -20%; bottom: -20%; left: -25%; right: -25%;
+  background: radial-gradient(ellipse 22% 40% at 50% 38%, rgba(255, 228, 160, .30), rgba(255, 228, 160, 0) 100%);
+  animation: lamp 11s ease-in-out infinite alternate;
+  pointer-events: none;
+}
+@keyframes lamp { from { transform: translateX(-18%); } to { transform: translateX(18%); } }
+
+/* ---------- graffiti ---------- */
+.graffiti {
+  position: absolute;
+  top: 0; left: 0; width: 100%; height: 100%;
+  pointer-events: none;
+}
+
+.tag text, .doodle, .painter-text { font-family: "Permanent Marker", "Segoe Print", "Bradley Hand", cursive; }
+.tag text { text-anchor: middle; }
+.tag { --c: #ffd23f; color: var(--c); }
+.tag .glow   { fill: var(--c); opacity: .4; filter: url(#blur); }
+.tag .ext    { fill: #130f0d; }
+.tag .fill   { fill: var(--c); filter: url(#rough); }
+.tag .stroke { fill: none; stroke: #130f0d; stroke-width: 7; stroke-linejoin: round; stroke-dasharray: 1700; }
+.drip { fill: var(--c); transform-box: fill-box; transform-origin: 50% 0; }
+
+.doodle { fill: none; stroke: #f4efe6; stroke-width: 5; stroke-linecap: round; stroke-linejoin: round; filter: url(#rough); }
+.doodle .line { stroke-dasharray: 900; }
+.doodle.pink { stroke: #ff4f9a; }
+.doodle.white-tag { stroke-width: 1.8; }
+.doodle.white-tag .paint { fill: #f4efe6; stroke-dasharray: 600; }
+
+/* The lettering repeats on a 20 second loop: drawn, held, then faded.
+   Without animation (reduced motion) the finished picture is shown. */
+.tag .stroke, .doodle .line { animation: draw 20s linear infinite; animation-delay: var(--d, 0s); }
+.tag .fill, .tag .glow, .tag .ext { animation: paint 20s linear infinite; animation-delay: var(--d, 0s); }
+.drip                       { animation: run 20s linear infinite; animation-delay: var(--d, 0s); }
+.doodle                     { animation: fade 20s linear infinite; animation-delay: var(--d, 0s); }
+.doodle.white-tag .paint    { animation: write 20s linear infinite; animation-delay: var(--d, 0s); }
+
+@keyframes draw {
+  0%   { stroke-dashoffset: 1700; opacity: 1; }
+  22%  { stroke-dashoffset: 0; }
+  88%  { stroke-dashoffset: 0; opacity: 1; }
+  96%, 100% { stroke-dashoffset: 0; opacity: 0; }
+}
+@keyframes paint {
+  0%, 18% { opacity: 0; }
+  30%, 88% { opacity: 1; }
+  96%, 100% { opacity: 0; }
+}
+@keyframes run {
+  0%, 28% { transform: scaleY(0); opacity: 1; }
+  48%, 88% { transform: scaleY(1); opacity: 1; }
+  96%, 100% { transform: scaleY(1); opacity: 0; }
+}
+@keyframes fade {
+  0%, 2% { opacity: 0; }
+  10%, 88% { opacity: 1; }
+  96%, 100% { opacity: 0; }
+}
+@keyframes write {
+  0%   { stroke-dashoffset: 600; fill-opacity: 0; }
+  26%  { stroke-dashoffset: 0; fill-opacity: 0; }
+  36%, 88% { stroke-dashoffset: 0; fill-opacity: 1; }
+  96%, 100% { stroke-dashoffset: 0; fill-opacity: 1; }
+}
+
+/* the figures sliding up and down their ropes */
+.rappel { animation: rappel 9s ease-in-out infinite alternate; }
+.rappel.slow { animation-duration: 14s; animation-delay: -5s; }
+@keyframes rappel { from { transform: translateY(80px); } to { transform: translateY(470px); } }
+
+/* the painter: the arm moves and the can puffs out paint */
+.painter .arm { transform: rotate(17deg); transform-origin: 34px 134px; animation: arm 1.1s ease-in-out infinite alternate; }
+@keyframes arm { from { transform: rotate(12deg); } to { transform: rotate(22deg); } }
+.spray circle { fill: #f4efe6; opacity: 0; transform-box: fill-box; transform-origin: center; animation: spray .8s ease-out infinite; animation-delay: var(--i, 0s); }
+@keyframes spray {
+  0%   { opacity: .75; transform: translate(0, 0) scale(.4); }
+  100% { opacity: 0; transform: translate(-80px, -4px) scale(2.5); }
+}
+
+/* simple painted title, only shown where the big tag will not fit (phones) */
+.wall-title {
+  display: none;
+  position: absolute;
+  top: 1.4rem; left: 0; right: 0;
+  text-align: center;
+  font-family: "Permanent Marker", "Segoe Print", cursive;
+  font-size: 2.6rem;
+  line-height: 1;
+  color: #ffd23f;
+  text-shadow: 3px 3px 0 #130f0d, 0 0 18px rgba(255, 210, 63, .5);
+  transform: rotate(-4deg);
+  animation: title-flicker 6s linear infinite;
+  pointer-events: none;
+}
+@keyframes title-flicker { 0%, 100% { opacity: 1; } 46% { opacity: 1; } 48% { opacity: .55; } 50% { opacity: 1; } 52% { opacity: .7; } 54% { opacity: 1; } }
+@media (max-width: 767px) {
+  .graffiti { display: none; }
+  .wall-title { display: block; }
+}
+
+/* ---------- the sign with the form ---------- */
+.wall-slot { position: relative; width: 100%; max-width: 26rem; }
+
+/* broken plaster and cracks that spread out from behind the sign */
+.wall-cracks {
+  position: absolute;
+  left: 50%; top: 50%;
+  width: 760px; height: 700px;
+  transform: translate(-50%, -50%);
+  pointer-events: none;
+}
+.wall-cracks .rim { transform-box: fill-box; transform-origin: center; animation: rim-pop .5s cubic-bezier(.2, 1.4, .4, 1) .35s both; }
+.wall-cracks .rim.shadow { fill: #1b1519; }
+.wall-cracks .rim.plaster { fill: #8b8791; stroke: #0d0810; stroke-width: 3; stroke-linejoin: round; }
+.wall-cracks .crack { fill: none; stroke: #0d0810; stroke-width: 4; stroke-linecap: round; stroke-linejoin: round; stroke-dasharray: 1; animation: crack-grow .9s ease-out .45s both; }
+.wall-cracks .crack.thin { stroke-width: 2.5; animation-delay: .8s; }
+.wall-cracks .puff { fill: #d8d0c8; opacity: 0; transform-box: fill-box; transform-origin: center; animation: puff 1.1s ease-out .4s both; }
+@keyframes rim-pop { from { transform: scale(.55); opacity: 0; } to { transform: scale(1); opacity: 1; } }
+@keyframes crack-grow { from { stroke-dashoffset: 1; } to { stroke-dashoffset: 0; } }
+@keyframes puff {
+  0%   { opacity: .8; transform: translate(0, 0) scale(.3); }
+  100% { opacity: 0; transform: translate(var(--dx), var(--dy)) scale(2.6); }
+}
+
+.wall-card {
+  position: relative;
+  z-index: 1;
+  width: 100%;
+  padding: 1.5rem 1.75rem 1.4rem;
+  color: #f3e9dc;
+  background: rgba(19, 15, 13, .92);
+  border: 3px solid #ffd23f;
+  box-shadow: 9px 9px 0 #ff4f9a, 0 18px 40px rgba(0, 0, 0, .55);
+  transform: rotate(-1deg);
+  animation: card-slam .55s cubic-bezier(.3, 0, .3, 1.25) both;
+}
+@keyframes card-slam {
+  from { opacity: 0; transform: translateY(-140px) rotate(-7deg) scale(1.3); }
+  55%  { opacity: 1; }
+  to   { opacity: 1; transform: rotate(-1deg); }
+}
+
+/* strips of tape on the corners */
+.wall-card::before, .wall-card::after {
+  content: "";
+  position: absolute;
+  width: 4.5rem; height: 1.4rem;
+  background: rgba(255, 238, 170, .55);
+}
+.wall-card::before { top: -.8rem; left: -1.6rem; transform: rotate(-35deg); }
+.wall-card::after  { top: -.8rem; right: -1.6rem; transform: rotate(35deg); }
+
+.wall-card h1 {
+  margin: 0 0 .15rem;
+  font-family: "Permanent Marker", "Segoe Print", cursive;
+  font-size: 2.1rem;
+  line-height: 1.1;
+  letter-spacing: .02em;
+  color: #ffd23f;
+}
+.wall-card .tagline { margin: 0 0 1rem; font-size: .85rem; letter-spacing: .12em; text-transform: uppercase; color: #bda894; }
+
+.wall-card .form-label { color: #f3e9dc; font-weight: 600; letter-spacing: .03em; }
+.wall-card .form-text { color: #bda894; }
+.wall-card .form-control {
+  color: #fff;
+  background-color: #15110f;
+  border: 2px solid #4b3f39;
+  border-radius: .25rem;
+}
+.wall-card .form-control:focus {
+  border-color: #ffd23f;
+  box-shadow: 0 0 0 .2rem rgba(255, 210, 63, .25);
+}
+.wall-card .text-danger { color: #ff8a80 !important; }
+
+.btn-spray {
+  padding: .5rem 1.4rem;
+  font-family: "Permanent Marker", "Segoe Print", cursive;
+  font-size: 1.1rem;
+  letter-spacing: .04em;
+  color: #130f0d;
+  background: #ffd23f;
+  border: 2px solid #130f0d;
+  border-radius: .2rem;
+  box-shadow: 4px 4px 0 #130f0d;
+  transition: transform .12s, box-shadow .12s, background .12s;
+}
+.btn-spray:hover, .btn-spray:focus-visible { color: #130f0d; background: #ff8fc2; transform: translate(-2px, -2px); box-shadow: 6px 6px 0 #130f0d; }
+.btn-spray:active { transform: translate(3px, 3px); box-shadow: 1px 1px 0 #130f0d; }
+.wall-card .btn-link { color: #ff8fc2; }
+.wall-card .btn-link:hover { color: #ffd23f; }
+
+@media (max-width: 575px) {
+  .wall { min-height: 700px; }
+  .wall-card { box-shadow: 6px 6px 0 #ff4f9a, 0 12px 28px rgba(0, 0, 0, .55); }
+  .wall-cracks { width: 560px; height: 520px; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .wall, .wall::before, .tag .stroke, .tag .fill, .tag .glow, .tag .ext, .drip, .doodle, .doodle .line, .doodle.white-tag .paint,
+  .rappel, .painter .arm, .spray circle, .wall-title, .wall-card,
+  .wall-cracks .rim, .wall-cracks .crack, .wall-cracks .puff { animation: none; }
+  .spray circle { opacity: 0; }
+}
