@@ -5,7 +5,8 @@ namespace Geopolitics.Services;
 // What the outside world is allowed to see of a game. These are separate from
 // the stored documents so private data (such as the owner's user id) never leaks.
 
-public record PlayerView(string PlayerId, string Name, bool IsHuman, bool IsEliminated, int TurnOrder, int CountriesOwned);
+public record PlayerView(string PlayerId, string Name, bool IsHuman, bool IsEliminated, int TurnOrder, int CountriesOwned,
+    string HomeCountryCode = "");
 
 public record CountryView(string Code, string Name, long Population, string OwnerPlayerId, int Soldiers);
 
@@ -57,7 +58,7 @@ public static class GameSnapshotFactory
             .OrderBy(p => p.TurnOrder)
             .Select(p => new PlayerView(
                 p.PlayerId, p.DisplayName, p.IsHuman, p.IsEliminated, p.TurnOrder,
-                TurnManager.CountriesOwned(g, p.PlayerId)))
+                TurnManager.CountriesOwned(g, p.PlayerId), p.HomeCountryCode))
             .ToList();
 
         var countries = g.Countries

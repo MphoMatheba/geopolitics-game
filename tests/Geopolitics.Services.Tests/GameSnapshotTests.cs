@@ -74,4 +74,18 @@ public class GameSnapshotTests
         Assert.Equal(new[] { 1, 4 }, view.AttackerRolls);
         Assert.Equal("Odds are still 62%.", view.Justification);
     }
+
+    [Fact]
+    public void Snapshot_tells_the_page_each_players_home_country()
+    {
+        var game = OwnedGame();
+        var snapshot = GameSnapshotFactory.From(game, null);
+
+        foreach (var view in snapshot.Players)
+        {
+            var player = game.Players.Single(p => p.PlayerId == view.PlayerId);
+            Assert.False(string.IsNullOrEmpty(view.HomeCountryCode));
+            Assert.Equal(player.HomeCountryCode, view.HomeCountryCode);
+        }
+    }
 }
