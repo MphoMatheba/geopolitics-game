@@ -1,8 +1,10 @@
 // The 3D globe. It only DISPLAYS the game: the server decides every outcome.
 // page.js tells it what to show (board colours and soldier counts, a battle arc,
 // flashes, where to look) and it tells page.js when a country is clicked.
-import * as THREE from 'three';
-import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+// Three.js is imported by path, not by a short name through an import map: ASP.NET's script tag helper
+// rewrites <script type="importmap"> in a Razor page, so the short name "three" would not be found.
+import * as THREE from '/lib/three/three.module.min.js';
+import { OrbitControls } from '/lib/three/addons/controls/OrbitControls.js';
 import './geo.js';
 import './art.js';
 
