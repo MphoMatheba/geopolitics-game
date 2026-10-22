@@ -5,10 +5,6 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Geopolitics: page check</title>
 <link rel="stylesheet" href="/css/game.css">
-<!-- The same import map the game page uses, so this page runs under the same conditions. -->
-<script type="importmap">
-{ "imports": { "three": "/lib/three/three.module.min.js", "three/addons/": "/lib/three/addons/" } }
-</script>
 <style>
   body { font: 15px/1.5 system-ui, sans-serif; max-width: 980px; margin: 1.5rem auto; padding: 0 1rem; color: #1b2430; }
   h1 { font-size: 1.5rem; margin-bottom: .2rem; }
@@ -250,7 +246,6 @@ shows a small demo. <strong>Take a screenshot of the whole page</strong> (scroll
         if (res.status !== 200) return;
         var html = await res.text();
         (html.match(/<script\b[^>]*>/g) || []).forEach(function (tag) { line('info', 'Script tag in the game page: ' + tag.replace(/\s+/g, ' ')); });
-        line(/<script[^>]*type="importmap"/.test(html) ? 'ok' : 'fail', /<script[^>]*type="importmap"/.test(html) ? 'The game page has an import map' : 'The game page has NO import map, so the game script cannot find "three"');
         var starts = /type="module"[^>]*src="[^"]*\/js\/game\/page\.js/.test(html) || html.indexOf("import('/js/game/page.js')") >= 0;
         line(starts ? 'ok' : 'fail', starts ? 'The game page starts /js/game/page.js' : 'The game page does NOT start /js/game/page.js: the script tag is missing from what the server sent');
         var dataId = (html.match(/id="app"[^>]*data-game-id="([^"]*)"/) || [])[1];
@@ -306,9 +301,6 @@ shows a small demo. <strong>Take a screenshot of the whole page</strong> (scroll
 
     async function main() {
         line('info', 'Browser: ' + navigator.userAgent);
-
-        var maps = typeof HTMLScriptElement.supports === 'function' && HTMLScriptElement.supports('importmap');
-        line(maps ? 'ok' : 'fail', maps ? 'This browser supports import maps (the game page needs them)' : 'This browser does NOT support import maps, which the game page needs. Try an up-to-date Chrome, Edge, Firefox or Safari.');
 
         var gl = false;
         try { var c = document.createElement('canvas'); gl = !!(c.getContext('webgl2') || c.getContext('webgl')); } catch (e) { gl = false; }
