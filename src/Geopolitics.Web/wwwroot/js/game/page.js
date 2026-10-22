@@ -239,7 +239,12 @@ function addLog(ev) {
 const animationMs = (ev) => Math.round(playback.delayFor(ev) * 0.9);
 
 function showEvent(ev, board) {
+    if (globe) {            // soldiers lost or gained show up when the matching effect lands, not before
+        globe.deathDelay = ev.type === 'DiceRolled' ? Math.round(animationMs(ev) * 0.55) : 0;
+        globe.spawnDelay = ['Reinforce', 'Transfer', 'CountryConquered'].includes(ev.type) ? Math.round(animationMs(ev) * 0.9) : 0;
+    }
     paintBoard(board);
+    if (globe) { globe.deathDelay = 0; globe.spawnDelay = 0; }
     addLog(ev);
     $('now').textContent = ev.message;
 
@@ -425,13 +430,34 @@ function picked(code) {
 
 // ---------- start ----------
 
+// The flag sheet (every country's flag in one picture) and where each flag is on it.
+// If it cannot be loaded the soldiers carry plain grey flags instead.
+async function loadFlags() {
+    try {
+        const [info, image] = await Promise.all([
+            fetch('/data/flags.json').then(r => r.json()),
+            new Promise((resolve, reject) => {
+                const img = new Image();
+                img.onload = () => resolve(img);
+                img.onerror = reject;
+                img.src = '/img/flags.png';
+            })
+        ]);
+        return { image, cell: info.cell, cols: info.cols, map: info.map };
+    } catch (err) {
+        console.warn('Flags unavailable', err);
+        return null;
+    }
+}
+
 async function start() {
     try {
-        const [coords, landDots] = await Promise.all([
+        const [coords, landDots, flags] = await Promise.all([
             fetch('/data/country-coords.json').then(r => r.json()),
-            fetch('/data/land-dots.json').then(r => r.json())
+            fetch('/data/land-dots.json').then(r => r.json()),
+            loadFlags()
         ]);
-        globe = new Globe($('globe'), $('labels'), { coords, landDots });
+        globe = new Globe($('globe'), $('labels'), { coords, landDots, flags });
         globe.onPick = picked;
     } catch (err) {
         console.error('3D globe unavailable', err);
