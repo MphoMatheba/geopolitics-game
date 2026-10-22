@@ -36,3 +36,20 @@ test('the page check has a script that parses and shows a plain message for each
         assert.ok(script.includes(text), 'no message mentions "' + text + '"');
     }
 });
+
+test('the routes the page check calls exist in the game and API controllers', () => {
+    const game = fs.readFileSync(path.join(WEB, 'Controllers', 'GameController.cs'), 'utf8');
+    const api = fs.readFileSync(path.join(WEB, 'Controllers', 'GamesApiController.cs'), 'utf8');
+    assert.ok(game.includes('HttpGet("g/{id}")') && html.includes("'/g/'"), 'the game page route /g/{id}');
+    assert.ok(/IActionResult> My\(/.test(game) && html.includes("'/Game/My'"), 'the list of games /Game/My');
+    assert.ok(api.includes('[Route("api/games")]') && html.includes("'/api/games/'"), 'the game API /api/games/{id}');
+    assert.ok(api.includes('HttpGet("{id}/events")') && html.includes("/events?after=0"), 'the events API');
+});
+
+test('the page check reports each way the real game page can be broken', () => {
+    const script = html.match(/<script>([\s\S]*?)<\/script>/)[1];
+    for (const text of ['You are not logged in', 'You have no games yet', 'script tag is missing', 'NO import map',
+                        'is still on "Loading..."', 'There is no globe canvas', 'fails to load', 'Players have no home country']) {
+        assert.ok(script.includes(text), 'no message mentions "' + text + '"');
+    }
+});
