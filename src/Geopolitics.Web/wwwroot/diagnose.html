@@ -1,0 +1,246 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Geopolitics: page check</title>
+<link rel="stylesheet" href="/css/game.css">
+<!-- The same import map the game page uses, so this page runs under the same conditions. -->
+<script type="importmap">
+{ "imports": { "three": "/lib/three/three.module.min.js", "three/addons/": "/lib/three/addons/" } }
+</script>
+<style>
+  body { font: 15px/1.5 system-ui, sans-serif; max-width: 980px; margin: 1.5rem auto; padding: 0 1rem; color: #1b2430; }
+  h1 { font-size: 1.5rem; margin-bottom: .2rem; }
+  h2 { font-size: 1.15rem; margin-top: 1.6rem; }
+  #checks { list-style: none; padding: 0; margin: 1rem 0; }
+  #checks li { padding: .3rem .6rem; margin-bottom: .25rem; border-left: 5px solid #999; background: #f3f5f7; word-break: break-word; }
+  #checks li.ok { border-color: #2e9e4f; }
+  #checks li.warn { border-color: #d9a400; background: #fff8e0; }
+  #checks li.fail { border-color: #d62d2d; background: #ffe9e9; font-weight: 600; }
+  #checks li.info { border-color: #4a78c2; }
+  .detail { font: 12px/1.4 ui-monospace, Menlo, monospace; font-weight: 400; color: #555; white-space: pre-wrap; }
+  #caption { margin: .5rem 0; color: #445; }
+</style>
+</head>
+<body>
+<h1>Geopolitics: page check</h1>
+<p>This page needs no login. It checks your browser, loads every game file in order, starts the real globe and
+shows a small demo. <strong>Take a screenshot of the whole page</strong> (scroll down for the demo) and send it.</p>
+
+<ol id="checks"></ol>
+
+<h2>Live demo (the real globe code with a made-up game)</h2>
+<div id="stage"><div id="globe"></div><div id="labels"></div></div>
+<div id="caption"></div>
+
+<script>
+(function () {
+    var list = document.getElementById('checks');
+    var caption = document.getElementById('caption');
+    var failures = 0;
+
+    function line(kind, text, detail) {
+        var li = document.createElement('li');
+        li.className = kind;
+        li.textContent = ({ ok: 'OK    ', warn: 'NOTE  ', fail: 'FAIL  ', info: '' })[kind] + text;
+        if (detail) {
+            var d = document.createElement('div');
+            d.className = 'detail';
+            d.textContent = detail;
+            li.appendChild(d);
+        }
+        if (kind === 'fail') failures++;
+        list.appendChild(li);
+    }
+
+    window.addEventListener('error', function (e) { line('fail', 'A script error happened: ' + e.message, (e.filename || '') + ':' + e.lineno); });
+    window.addEventListener('unhandledrejection', function (e) { line('fail', 'A promise failed: ' + ((e.reason && e.reason.message) || e.reason)); });
+
+    // every file the game page needs; optional ones only exist once a later bundle is applied
+    var FILES = [
+        { url: '/js/game/page.js' },
+        { url: '/js/game/playback.js' },
+        { url: '/js/game/geo.js' },
+        { url: '/js/game/globe.js' },
+        { url: '/js/game/art.js', optional: true },
+        { url: '/lib/three/three.module.min.js' },
+        { url: '/lib/three/addons/controls/OrbitControls.js' },
+        { url: '/data/country-coords.json' },
+        { url: '/data/land-dots.json' },
+        { url: '/data/flags.json', optional: true },
+        { url: '/img/flags.png', optional: true },
+        { url: '/css/game.css' }
+    ];
+
+    // modules, in the order the game page loads them
+    var MODULES = ['/js/game/playback.js', '/js/game/geo.js', '/js/game/art.js', '/lib/three/three.module.min.js',
+                   '/lib/three/addons/controls/OrbitControls.js', '/js/game/globe.js'];
+
+    var texts = {};
+
+    async function checkFiles() {
+        for (var i = 0; i < FILES.length; i++) {
+            var f = FILES[i];
+            try {
+                var res = await fetch(f.url, { cache: 'no-store' });
+                var type = res.headers.get('content-type') || 'no content type';
+                var body = await res.arrayBuffer();
+                if (res.status === 404 && f.optional) {
+                    line('warn', f.url + ' is not on the server (fine unless you applied the bundle that adds it)');
+                } else if (res.status !== 200) {
+                    line('fail', f.url + ' returned HTTP ' + res.status);
+                } else {
+                    line('ok', f.url + '  (' + Math.round(body.byteLength / 1024) + ' KB, ' + type.split(';')[0] + ')');
+                    if (/javascript/.test(type)) texts[f.url] = new TextDecoder().decode(body);
+                }
+            } catch (e) {
+                line('fail', f.url + ' could not be fetched: ' + e.message);
+            }
+        }
+    }
+
+    function versionOfGame() {
+        var g = texts['/js/game/globe.js'] || '';
+        var parts = [];
+        if (g.indexOf('animateSquads') >= 0) parts.push('pixel soldiers with flags');
+        if (g.indexOf('rollDice') >= 0) parts.push('3D dice and moving soldiers');
+        line('info', 'Globe version on the server: ' + (parts.join(' + ') || 'basic globe (no battle animations yet)'));
+        var p = texts['/js/game/page.js'] || '';
+        line('info', 'Game page script: ' + (p.indexOf('loadFlags') >= 0 ? 'loads the flag sheet' : 'no flag sheet loading'));
+    }
+
+    async function checkModules() {
+        var loaded = {};
+        for (var i = 0; i < MODULES.length; i++) {
+            var url = MODULES[i];
+            if (url === '/js/game/art.js' && !texts[url]) continue;     // not applied yet
+            try {
+                loaded[url] = await import(url);
+                line('ok', 'Loaded module ' + url);
+            } catch (e) {
+                line('fail', 'The module ' + url + ' failed to load: ' + e.message, e.stack ? String(e.stack).split('\n').slice(0, 3).join('\n') : '');
+                return null;
+            }
+        }
+        return loaded;
+    }
+
+    function loadImage(url) {
+        return new Promise(function (resolve, reject) {
+            var img = new Image();
+            img.onload = function () { resolve(img); };
+            img.onerror = function () { reject(new Error('image did not load: ' + url)); };
+            img.src = url;
+        });
+    }
+
+    async function startDemo(loaded) {
+        var Globe = loaded['/js/game/globe.js'].Globe;
+        var coords = await (await fetch('/data/country-coords.json')).json();
+        var landDots = await (await fetch('/data/land-dots.json')).json();
+        var flags = null;
+        try {
+            var info = await (await fetch('/data/flags.json')).json();
+            flags = { image: await loadImage('/img/flags.png'), cell: info.cell, cols: info.cols, map: info.map };
+        } catch (e) { line('warn', 'No flag sheet, so soldiers (if your version has them) carry plain grey flags'); }
+
+        var globe;
+        try {
+            globe = new Globe(document.getElementById('globe'), document.getElementById('labels'), { coords: coords, landDots: landDots, flags: flags });
+            line('ok', 'The globe was created');
+        } catch (e) {
+            line('fail', 'The globe could not be created: ' + e.message, e.stack ? String(e.stack).split('\n').slice(0, 4).join('\n') : '');
+            return;
+        }
+
+        var players = [
+            { playerId: 'a', name: 'You', isHuman: true, turnOrder: 0, homeCountryCode: 'south-africa' },
+            { playerId: 'b', name: 'NPC 1', isHuman: false, turnOrder: 1, homeCountryCode: 'france' },
+            { playerId: 'c', name: 'NPC 2', isHuman: false, turnOrder: 2, homeCountryCode: 'germany' },
+            { playerId: 'd', name: 'NPC 3', isHuman: false, turnOrder: 3, homeCountryCode: 'brazil' }
+        ];
+        var start = { 'south-africa': ['a', 12], 'france': ['b', 4], 'germany': ['c', 3], 'brazil': ['d', 6] };
+        var names = { 'south-africa': 'South Africa', 'france': 'France', 'germany': 'Germany', 'brazil': 'Brazil' };
+        var soldiers = {};
+        function board() {
+            var countries = {};
+            Object.keys(start).forEach(function (c) { countries[c] = { ownerPlayerId: start[c][0], soldiers: soldiers[c] }; });
+            return { countries: countries };
+        }
+        function reset() { Object.keys(start).forEach(function (c) { soldiers[c] = start[c][1]; }); }
+        function show(deathMs, spawnMs) {      // like the game page: changes appear when the effect lands
+            globe.deathDelay = deathMs || 0;
+            globe.spawnDelay = spawnMs || 0;
+            globe.update(board(), players);
+            globe.deathDelay = 0;
+            globe.spawnDelay = 0;
+        }
+
+        globe.setCountries(Object.keys(names).map(function (c) { return { code: c, name: names[c] }; }));
+        reset();
+        show();
+        line('ok', 'Four countries with soldiers were put on the globe');
+
+        setTimeout(function () {
+            var calls = globe.renderer && globe.renderer.info ? globe.renderer.info.render.calls : -1;
+            if (calls > 0) line('ok', 'The globe is drawing (' + calls + ' draw calls per frame). You should see it below.');
+            else line('fail', 'The globe was created but is drawing nothing (draw calls: ' + calls + ')');
+            line(failures ? 'fail' : 'ok', failures ? 'Something above failed: send me this page.' : 'Everything on this page worked.');
+        }, 1500);
+
+        var step = 0;
+        function run() {
+            var ms = 1600;
+            if (step === 0) {
+                caption.textContent = 'Demo 1/3: Germany attacks France. Watch the dice tumble and a soldier fall on each side.';
+                globe.showBattle('germany', 'france');
+                globe.focusOn(['germany', 'france']);
+                globe.rollDice('germany', 'france', [6, 2], [3, 5], ms);
+                soldiers.germany -= 1; soldiers.france -= 1;
+                show(Math.round(ms * 0.55), 0);
+            } else if (step === 1) {
+                caption.textContent = 'Demo 2/3: South Africa sends soldiers to Brazil (they run, each with a flag).';
+                globe.clearBattle();
+                globe.sendTroops('south-africa', 'brazil', 3, 0xffd23f, 1800);
+                globe.focusOn(['south-africa', 'brazil']);
+            } else if (step === 2) {
+                caption.textContent = 'Demo 3/3: reinforcements fall into France.';
+                globe.dropReinforcements('france', 2, 0x4fc3f7, 1800);
+                globe.focusOn(['france']);
+                soldiers.france += 2;
+                show(0, 1600);
+            } else {
+                globe.clearEffects();
+                reset();
+                show();
+                caption.textContent = 'Demo restarting...';
+            }
+            step = (step + 1) % 4;
+        }
+        run();
+        setInterval(run, 4500);
+    }
+
+    async function main() {
+        line('info', 'Browser: ' + navigator.userAgent);
+
+        var maps = typeof HTMLScriptElement.supports === 'function' && HTMLScriptElement.supports('importmap');
+        line(maps ? 'ok' : 'fail', maps ? 'This browser supports import maps (the game page needs them)' : 'This browser does NOT support import maps, which the game page needs. Try an up-to-date Chrome, Edge, Firefox or Safari.');
+
+        var gl = false;
+        try { var c = document.createElement('canvas'); gl = !!(c.getContext('webgl2') || c.getContext('webgl')); } catch (e) { gl = false; }
+        line(gl ? 'ok' : 'fail', gl ? 'WebGL (3D drawing) is available' : 'WebGL (3D drawing) is NOT available in this browser, so the globe cannot be drawn. Turn on hardware acceleration in the browser settings.');
+
+        await checkFiles();
+        versionOfGame();
+        var loaded = await checkModules();
+        if (!loaded) { line('fail', 'Stopping here: fix the module above first. Send me this page.'); return; }
+        await startDemo(loaded);
+    }
+
+    main().catch(function (e) { line('fail', 'The check itself failed: ' + e.message, e.stack ? String(e.stack).split('\n').slice(0, 3).join('\n') : ''); });
+})();
+</script>
+</body>
+</html>
