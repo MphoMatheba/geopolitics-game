@@ -28,10 +28,10 @@ test.before(async () => {
     });
     globalThis.document = { createElement: () => ({ width: 0, height: 0, getContext: fakeContext }) };
     const threeUrl = pathToFileURL(path.join(WEB, 'lib', 'three', 'three.module.min.js')).href;
-    // globe.js imports 'three' and OrbitControls by browser import-map names; point them at real files / a stub.
+    // globe.js imports Three.js and OrbitControls by browser paths; point them at real files / a stub.
     const source = fs.readFileSync(path.join(WEB, 'js', 'game', 'globe.js'), 'utf8')
-        .replace("import * as THREE from 'three';", `import * as THREE from '${threeUrl}';`)
-        .replace("import { OrbitControls } from 'three/addons/controls/OrbitControls.js';", 'const OrbitControls = class {};')
+        .replace("import * as THREE from '/lib/three/three.module.min.js';", `import * as THREE from '${threeUrl}';`)
+        .replace("import { OrbitControls } from '/lib/three/addons/controls/OrbitControls.js';", 'const OrbitControls = class {};')
         .replace("import './geo.js';", '')
         .replace("import './art.js';", '');
     const file = path.join(fs.mkdtempSync(path.join(os.tmpdir(), 'globe-')), 'globe.mjs');

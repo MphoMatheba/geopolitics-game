@@ -23,16 +23,16 @@ test('every module the page check loads is also in its file list', () => {
     for (const m of modules) assert.ok(listed.has(m), m + ' is loaded but not listed');
 });
 
-test('the page check uses the same import map as the game page', () => {
-    const map = (text) => JSON.parse(text.match(/<script type="importmap">([\s\S]*?)<\/script>/)[1]);
+test('neither the page check nor the game page uses an import map (ASP.NET rewrites them in Razor pages)', () => {
     const game = fs.readFileSync(path.join(WEB, 'Views', 'Game', 'Details.cshtml'), 'utf8');
-    assert.deepEqual(map(html), map(game));
+    assert.ok(!/type="importmap"/.test(html), 'diagnose.html has an import map');
+    assert.ok(!/type="importmap"/.test(game), 'Details.cshtml has an import map');
 });
 
 test('the page check has a script that parses and shows a plain message for each failure it can find', () => {
     const script = html.match(/<script>([\s\S]*?)<\/script>/)[1];
     assert.doesNotThrow(() => new Function('return async function () {' + script.replace(/\bawait import\(/g, 'await (0, eval)(') + '}'));
-    for (const text of ['import maps', 'WebGL', 'could not be fetched', 'failed to load', 'could not be created', 'drawing nothing']) {
+    for (const text of ['WebGL', 'could not be fetched', 'failed to load', 'could not be created', 'drawing nothing']) {
         assert.ok(script.includes(text), 'no message mentions "' + text + '"');
     }
 });
@@ -48,7 +48,7 @@ test('the routes the page check calls exist in the game and API controllers', ()
 
 test('the page check reports each way the real game page can be broken', () => {
     const script = html.match(/<script>([\s\S]*?)<\/script>/)[1];
-    for (const text of ['You are not logged in', 'You have no games yet', 'script tag is missing', 'NO import map',
+    for (const text of ['You are not logged in', 'You have no games yet', 'script tag is missing',
                         'is still on "Loading..."', 'There is no globe canvas', 'fails to load', 'Players have no home country']) {
         assert.ok(script.includes(text), 'no message mentions "' + text + '"');
     }
