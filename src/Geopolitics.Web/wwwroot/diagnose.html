@@ -34,6 +34,9 @@ shows a small demo. <strong>Take a screenshot of the whole page</strong> (scroll
 <div id="stage"><div id="globe"></div><div id="labels"></div></div>
 <div id="caption"></div>
 
+<h2 id="gameheading" hidden>Your real game page, loaded as the browser sees it</h2>
+<div id="gameframe"></div>
+
 <script>
 (function () {
     var list = document.getElementById('checks');
@@ -186,7 +189,6 @@ shows a small demo. <strong>Take a screenshot of the whole page</strong> (scroll
             var calls = globe.renderer && globe.renderer.info ? globe.renderer.info.render.calls : -1;
             if (calls > 0) line('ok', 'The globe is drawing (' + calls + ' draw calls per frame). You should see it below.');
             else line('fail', 'The globe was created but is drawing nothing (draw calls: ' + calls + ')');
-            line(failures ? 'fail' : 'ok', failures ? 'Something above failed: send me this page.' : 'Everything on this page worked.');
         }, 1500);
 
         var step = 0;
@@ -222,6 +224,86 @@ shows a small demo. <strong>Take a screenshot of the whole page</strong> (scroll
         setInterval(run, 4500);
     }
 
+    function sleep(ms) { return new Promise(function (r) { setTimeout(r, ms); }); }
+    function shortStack(e) { return e && e.stack ? String(e.stack).split('\n').slice(0, 4).join('\n') : ''; }
+
+    // Looks at the real game page: what the server sent, what the API says, and whether its script starts.
+    async function checkGamePage() {
+        var id = new URLSearchParams(location.search).get('game');
+        if (!id) {
+            var list;
+            try { list = await fetch('/Game/My', { credentials: 'same-origin' }); }
+            catch (e) { line('warn', 'Could not get your list of games: ' + e.message); return; }
+            if (list.redirected && /login/i.test(list.url)) {
+                line('warn', 'You are not logged in in this browser, so your game page cannot be checked. Log in (at /Account/Login), then reload this page.');
+                return;
+            }
+            var m = (await list.text()).match(/href="\/g\/([^"\/?#]+)"/);
+            if (!m) { line('warn', 'You have no games yet. Start one with New game, then reload this page.'); return; }
+            id = m[1];
+            line('info', 'Checking your game ' + id + '  (add ?game=ID to this address to check another one)');
+        }
+
+        // 1. what the server sends for the game page
+        var res = await fetch('/g/' + id, { credentials: 'same-origin' });
+        line(res.status === 200 ? 'ok' : 'fail', 'The game page /g/' + id + ' returned HTTP ' + res.status);
+        if (res.status !== 200) return;
+        var html = await res.text();
+        (html.match(/<script\b[^>]*>/g) || []).forEach(function (tag) { line('info', 'Script tag in the game page: ' + tag.replace(/\s+/g, ' ')); });
+        line(/<script[^>]*type="importmap"/.test(html) ? 'ok' : 'fail', /<script[^>]*type="importmap"/.test(html) ? 'The game page has an import map' : 'The game page has NO import map, so the game script cannot find "three"');
+        var starts = /type="module"[^>]*src="[^"]*\/js\/game\/page\.js/.test(html) || html.indexOf("import('/js/game/page.js')") >= 0;
+        line(starts ? 'ok' : 'fail', starts ? 'The game page starts /js/game/page.js' : 'The game page does NOT start /js/game/page.js: the script tag is missing from what the server sent');
+        var dataId = (html.match(/id="app"[^>]*data-game-id="([^"]*)"/) || [])[1];
+        line(dataId === id ? 'ok' : 'fail', 'The page tells its script the game id "' + dataId + '"' + (dataId === id ? '' : ' but the game is "' + id + '"'));
+        var missing = ['status', 'role', 'globe', 'labels', 'controls', 'players', 'countries', 'log', 'ff'].filter(function (x) { return html.indexOf('id="' + x + '"') < 0; });
+        line(missing.length ? 'fail' : 'ok', missing.length ? 'The game page is missing these elements: ' + missing.join(', ') : 'All the elements the game script needs are in the page');
+
+        // 2. what the API says
+        try {
+            var api = await fetch('/api/games/' + id, { credentials: 'same-origin' });
+            if (api.status !== 200) line('fail', 'The game API returned HTTP ' + api.status);
+            else {
+                var snap = await api.json();
+                line('ok', 'The game API works: ' + snap.status + ', round ' + snap.round + ', ' + snap.players.length + ' players, ' + snap.countries.length + ' countries');
+                var homes = snap.players.every(function (p) { return !!p.homeCountryCode; });
+                line(homes ? 'ok' : 'warn', homes ? 'Players carry their home country (so soldiers can carry the right flag)' : 'Players have no home country in the API reply (the server needs the soldiers bundle, then a restart), so flags fall back to grey');
+            }
+            var ev = await fetch('/api/games/' + id + '/events?after=0', { credentials: 'same-origin' });
+            line(ev.status === 200 ? 'ok' : 'fail', 'The game events API returned HTTP ' + ev.status);
+        } catch (e) { line('fail', 'Calling the game API failed: ' + e.message); }
+
+        // 3. the page itself, in a frame, to see whether its script starts
+        document.getElementById('gameheading').hidden = false;
+        var frame = document.createElement('iframe');
+        frame.style.cssText = 'width:100%;height:780px;border:1px solid #bbb;border-radius:6px';
+        var loaded = new Promise(function (resolve) { frame.onload = resolve; });
+        frame.src = '/g/' + id;
+        document.getElementById('gameframe').appendChild(frame);
+        await loaded;
+        await sleep(4000);
+        var doc = frame.contentDocument, win = frame.contentWindow;
+        var status = doc.getElementById('status'), badge = doc.getElementById('role');
+        line('info', 'Inside the game page the status says "' + (status && status.textContent) + '" and the badge says "' + (badge && badge.textContent) + '"');
+        var started = status && status.textContent.indexOf('Loading') < 0;
+        line(started ? 'ok' : 'fail', started ? 'The game page script started and loaded the game' : 'The game page is still on "Loading...": its script did not start, or stopped early');
+        var canvas = doc.querySelector('#globe canvas');
+        line(canvas ? 'ok' : 'fail', canvas ? 'The globe canvas is on the game page' : 'There is no globe canvas on the game page');
+
+        if (!started) {       // run the game script again inside that page to see the real error
+            try {
+                await win.eval("import('/js/game/page.js?probe=" + Date.now() + "')");
+                line('warn', 'Running the game script again inside the page did not fail. The first run probably failed because of the order things loaded in.');
+            } catch (e) {
+                line('fail', 'Running the game script inside the game page fails: ' + (e && e.message ? e.message : e), shortStack(e));
+                for (var i = 0; i < MODULES.length; i++) {
+                    if (MODULES[i] === '/js/game/art.js' && !texts[MODULES[i]]) continue;
+                    try { await win.eval("import('" + MODULES[i] + "')"); }
+                    catch (e2) { line('fail', 'Inside the game page, ' + MODULES[i] + ' fails to load: ' + (e2 && e2.message ? e2.message : e2), shortStack(e2)); break; }
+                }
+            }
+        }
+    }
+
     async function main() {
         line('info', 'Browser: ' + navigator.userAgent);
 
@@ -237,6 +319,8 @@ shows a small demo. <strong>Take a screenshot of the whole page</strong> (scroll
         var loaded = await checkModules();
         if (!loaded) { line('fail', 'Stopping here: fix the module above first. Send me this page.'); return; }
         await startDemo(loaded);
+        try { await checkGamePage(); } catch (e) { line('fail', 'The game page check itself failed: ' + e.message, shortStack(e)); }
+        line(failures ? 'fail' : 'ok', failures ? 'Something above failed. Send me a screenshot of the whole page.' : 'Everything on this page worked.');
     }
 
     main().catch(function (e) { line('fail', 'The check itself failed: ' + e.message, e.stack ? String(e.stack).split('\n').slice(0, 3).join('\n') : ''); });
