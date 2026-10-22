@@ -104,3 +104,30 @@ test('pointAlong stays on the path when u is out of range, and works with two po
     assert.deepEqual(geo.pointAlong(two, 5), { x: 0, y: 10, z: 0 });
     assert.deepEqual(geo.pointAlong(two, 0.5), { x: 0, y: 5, z: 0 });
 });
+
+test('a squad of 1 to 5 soldiers stands in one centred row, with room for each flag above it', () => {
+    const FLAG_WIDTH = 0.075;                                 // must match the flag size on the globe
+    for (let n = 1; n <= geo.MAX_SQUAD; n++) {
+        const spots = geo.squadOffsets(n);
+        assert.equal(spots.length, n);
+        const meanX = spots.reduce((a, p) => a + p.x, 0) / n, meanZ = spots.reduce((a, p) => a + p.z, 0) / n;
+        assert.ok(Math.abs(meanX) < 1e-9 && Math.abs(meanZ) < 0.01, `squad of ${n} is off-centre`);
+        for (const p of spots) assert.ok(Math.abs(p.x) < 0.2 && Math.abs(p.z) < 0.05, `squad of ${n} spreads too far`);
+        for (let i = 1; i < n; i++) {
+            const gap = spots[i].x - spots[i - 1].x;
+            assert.ok(gap > FLAG_WIDTH, `flags of soldiers ${i - 1} and ${i} would overlap (gap ${gap})`);
+            assert.ok(gap < 0.125, `soldiers ${i - 1} and ${i} stand too far apart`);
+        }
+    }
+});
+
+test('a squad is never bigger than the maximum, and zero soldiers means nobody', () => {
+    assert.equal(geo.squadOffsets(0).length, 0);
+    assert.equal(geo.squadOffsets(99).length, geo.MAX_SQUAD);
+});
+
+test('the uniform follows the player: human first, then one each, in the same order as the colours', () => {
+    assert.equal(geo.uniformIndex(0, true), 0);
+    for (let i = 1; i <= 9; i++) assert.equal(geo.playerColor(i, false), geo.PALETTE[geo.uniformIndex(i, false)]);
+    assert.ok(geo.uniformIndex(3, false) >= 1 && geo.uniformIndex(3, false) <= 9);
+});

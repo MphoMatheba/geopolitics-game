@@ -8,9 +8,13 @@
     const PALETTE = ['#f5c542', '#4fc3f7', '#ef5350', '#66bb6a', '#ab47bc',
                      '#ff8a65', '#26c6da', '#d4e157', '#ec407a', '#8d9bff'];
 
+    // Which of the ten colours / uniforms a player has: the human is always the first.
+    function uniformIndex(turnOrder, isHuman) {
+        return isHuman ? 0 : 1 + (turnOrder % (PALETTE.length - 1));
+    }
+
     function playerColor(turnOrder, isHuman) {
-        if (isHuman) return PALETTE[0];
-        return PALETTE[1 + (turnOrder % (PALETTE.length - 1))];
+        return PALETTE[uniformIndex(turnOrder, isHuman)];
     }
 
     // Latitude/longitude in degrees to a point on a sphere. +y is north.
@@ -105,8 +109,21 @@
         return { x: a.x + (b.x - a.x) * f, y: a.y + (b.y - a.y) * f, z: a.z + (b.z - a.z) * f };
     }
 
+    // ---- soldiers standing on a country ----
+
+    // A country shows at most this many soldiers; the number on its label is the true count.
+    const MAX_SQUAD = 5;
+
+    // Where each of n soldiers stands: in one row, sideways (x) around the middle of the country, with a tiny
+    // front-to-back stagger (z) so neighbours overlap like a crowd. One row keeps every flag clear of the others.
+    function squadOffsets(n) {
+        const count = Math.max(0, Math.min(MAX_SQUAD, n));
+        const spacing = 0.085;
+        return Array.from({ length: count }, (_, i) => ({ x: (i - (count - 1) / 2) * spacing, z: count === 1 ? 0 : (i % 2 ? 0.01 : -0.01) }));
+    }
+
     return {
-        PALETTE, playerColor, latLonToXYZ, arcPoints, isFacing, markerHeight, unit, len, dot,
+        uniformIndex, MAX_SQUAD, squadOffsets, PALETTE, playerColor, latLonToXYZ, arcPoints, isFacing, markerHeight, unit, len, dot,
         DIE_FACE_VALUES, dieFaceNormal, PIPS, diceOutcomes, pointAlong
     };
 });
