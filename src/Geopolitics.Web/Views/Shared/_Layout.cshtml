@@ -1,3 +1,7 @@
+@{
+    // pages that need the whole screen (the game) set ViewData["Wide"] = true
+    var wide = (ViewData["Wide"] as bool?) == true;
+}
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -38,9 +42,11 @@
             </div>
         </nav>
     </header>
-    <div class="container">
+    <div class="@(wide ? "container-fluid px-3 px-xl-4" : "container")">
         <main role="main" class="pb-3">
-            @RenderBody()
+            <div class="page-panel" data-bs-theme="dark">
+                @RenderBody()
+            </div>
         </main>
     </div>
 

@@ -29,3 +29,63 @@ body {
 .form-floating > .form-control-plaintext:focus::placeholder, .form-floating > .form-control:focus::placeholder {
   text-align: start;
 }
+
+/* ===== Brick wall background on every page ===== */
+body {
+  min-height: 100vh;
+  color: #f3e9df;
+  background-color: #1b0f0a;
+  background-image: url("/img/brick-wall.jpg");
+  background-size: 940px 420px;
+}
+
+/* a warm lamp drifting slowly across the wall, and dark corners like in the reference photo */
+body::before {
+  content: "";
+  position: fixed;
+  top: 0; left: 0; right: 0; bottom: 0;
+  z-index: -1;
+  pointer-events: none;
+  background-image:
+    radial-gradient(ellipse 52% 46% at 50% 0%, rgba(255, 170, 70, .62) 0%, rgba(255, 128, 40, .22) 52%, rgba(255, 128, 40, 0) 78%),
+    radial-gradient(ellipse 130% 95% at 50% 32%, rgba(0, 0, 0, 0) 34%, rgba(0, 0, 0, .78) 100%);
+  background-size: 170% 100%, 100% 100%;
+  background-position: 20% 0, 0 0;
+  background-repeat: no-repeat;
+  animation: wall-lamp 18s ease-in-out infinite alternate;
+}
+@keyframes wall-lamp {
+  from { background-position: 20% 0, 0 0; }
+  to   { background-position: 80% 0, 0 0; }
+}
+
+.navbar.bg-dark {
+  background-color: rgba(17, 11, 9, .93) !important;
+  box-shadow: 0 3px 14px rgba(0, 0, 0, .55);
+}
+
+/* page content sits on a dark panel so it stays readable on the bricks (Bootstrap's dark theme is set in the layout) */
+.page-panel {
+  padding: 1.4rem 1.6rem;
+  color: var(--bs-body-color);
+  background: rgba(14, 10, 8, .84);
+  border: 1px solid rgba(255, 190, 120, .16);
+  border-radius: .8rem;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, .45);
+}
+.page-panel a:not(.btn) { color: #ffb066; }
+.page-panel a:not(.btn):hover { color: #ffd199; }
+.page-panel .text-muted { color: #c2ae9c !important; }
+/* pages that bring their own wall or full-width screen need no panel */
+.page-panel:has(> .wall), .page-panel:has(> #app) {
+  padding: 0;
+  background: none;
+  border: 0;
+  box-shadow: none;
+}
+
+.lineup { display: block; max-width: 100%; height: auto; margin: 0 auto 1.2rem; image-rendering: pixelated; }
+
+@media (prefers-reduced-motion: reduce) {
+  body::before { animation: none; }
+}
