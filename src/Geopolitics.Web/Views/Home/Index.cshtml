@@ -2,7 +2,8 @@
     ViewData["Title"] = "Home";
 }
 
-<div class="text-center py-5">
+<div class="text-center py-4">
+    <canvas id="lineup" class="lineup" width="764" height="150" role="img" aria-label="Ten soldiers in different uniforms, each with the flag of a country above their head"></canvas>
     <h1 class="display-4">Geopolitics</h1>
     <p class="lead">Take on nine rival nations and conquer the world, one dice roll at a time.</p>
 
@@ -19,3 +20,7 @@
 
     <p class="text-muted mt-4">Anyone with a game's link can watch it live. Only its owner can play.</p>
 </div>
+
+@section Scripts {
+    <script type="module" src="~/js/home.js" asp-append-version="true"></script>
+}
