@@ -1,18 +1,20 @@
 @model string
 @{
     ViewData["Title"] = "Game";
+    ViewData["Wide"] = true;      // use the whole width of the screen
 }
 
-@* The game page. All behaviour lives in wwwroot/js/game/ (page.js drives it);
-   this file is only the layout. *@
+@* The game page. All behaviour lives in wwwroot/js/game/ (page.js drives it); this file is only the layout:
+   a big stage with the globe, and a narrow chat-style box on the side for the controls, the log, the players
+   and the countries. *@
 
 <link rel="stylesheet" href="~/css/game.css" asp-append-version="true" />
 
 <div id="app" data-game-id="@Model">
-    <div class="d-flex flex-wrap justify-content-between align-items-center mb-2 gap-2">
+    <div class="game-top">
         <div>
             <h1 class="h4 mb-0">Geopolitics</h1>
-            <div id="status" class="text-muted">Loading...</div>
+            <div id="status" class="game-status">Loading...</div>
         </div>
         <div class="d-flex align-items-center gap-2">
             <button id="ff" type="button" class="btn btn-sm btn-outline-warning d-none">&#9193; Fast-forward</button>
@@ -20,8 +22,8 @@
         </div>
     </div>
 
-    <div class="row g-3">
-        <div class="col-xl-8">
+    <div class="game-layout">
+        <div class="game-main">
             <div id="stage">
                 <div id="globe"></div>
                 <div id="labels"></div>
@@ -34,71 +36,83 @@
                 </div>
             </div>
             <div id="narration" aria-live="polite">
-                <div id="now" class="small text-muted"></div>
+                <div id="now" class="small"></div>
                 <div id="why"></div>
                 <div id="say"></div>
             </div>
         </div>
 
-        <div class="col-xl-4">
-            <div id="playing" class="alert alert-secondary py-2 small d-none mb-3">
-                Computer players are taking their turns. You can speed this up with Fast-forward; every move is still shown.
+        <aside class="chat" data-bs-theme="dark" aria-label="Game panel">
+            <div id="playing" class="chat-note d-none">
+                Computer players are taking their turns. Use Fast-forward to speed it up; every move is still shown.
             </div>
 
-            <div id="controls" class="card card-body mb-3 d-none">
+            <div id="controls" class="chat-controls d-none">
                 <div id="msg" class="text-danger small mb-2" role="alert"></div>
 
-                <div class="mb-3">
-                    <div class="fw-bold small">Place reinforcements</div>
-                    <div class="input-group input-group-sm">
-                        <select id="rf-country" class="form-select" aria-label="Country to reinforce"></select>
-                        <input id="rf-count" type="number" min="1" value="1" class="form-control" style="max-width:5rem" aria-label="Soldiers to place" />
-                        <button id="rf-go" type="button" class="btn btn-secondary">Place</button>
+                <div class="ctl">
+                    <div class="ctl-title">Place reinforcements</div>
+                    <div class="ctl-row">
+                        <select id="rf-country" class="form-select form-select-sm" aria-label="Country to reinforce"></select>
+                        <input id="rf-count" type="number" min="1" value="1" class="form-control form-control-sm num" aria-label="Soldiers to place" />
+                        <button id="rf-go" type="button" class="btn btn-sm btn-secondary">Place</button>
                     </div>
                 </div>
 
-                <div class="mb-3">
-                    <div class="fw-bold small">Move soldiers</div>
-                    <div class="input-group input-group-sm">
-                        <select id="tf-from" class="form-select" aria-label="Move from"></select>
-                        <select id="tf-to" class="form-select" aria-label="Move to"></select>
-                        <input id="tf-count" type="number" min="1" value="1" class="form-control" style="max-width:5rem" aria-label="Soldiers to move" />
-                        <button id="tf-go" type="button" class="btn btn-secondary">Move</button>
+                <div class="ctl">
+                    <div class="ctl-title">Move soldiers</div>
+                    <div class="ctl-row">
+                        <select id="tf-from" class="form-select form-select-sm" aria-label="Move from"></select>
+                        <span class="arrow" aria-hidden="true">&rarr;</span>
+                        <select id="tf-to" class="form-select form-select-sm" aria-label="Move to"></select>
+                    </div>
+                    <div class="ctl-row">
+                        <input id="tf-count" type="number" min="1" value="1" class="form-control form-control-sm num" aria-label="Soldiers to move" />
+                        <button id="tf-go" type="button" class="btn btn-sm btn-secondary">Move</button>
                     </div>
                 </div>
 
-                <div class="mb-3">
-                    <div class="fw-bold small">Attack <span class="text-muted fw-normal">(or click countries on the globe)</span></div>
-                    <div class="input-group input-group-sm mb-2">
-                        <select id="at-from" class="form-select" aria-label="Attack from"></select>
-                        <select id="at-to" class="form-select" aria-label="Attack target"></select>
+                <div class="ctl">
+                    <div class="ctl-title">Attack <span class="ctl-hint">(or click countries on the globe)</span></div>
+                    <div class="ctl-row">
+                        <select id="at-from" class="form-select form-select-sm" aria-label="Attack from"></select>
+                        <span class="arrow" aria-hidden="true">&rarr;</span>
+                        <select id="at-to" class="form-select form-select-sm" aria-label="Attack target"></select>
                     </div>
-                    <button id="at-start" type="button" class="btn btn-danger btn-sm">Start attack</button>
-                    <button id="at-roll" type="button" class="btn btn-warning btn-sm">Roll dice</button>
-                    <button id="at-stop" type="button" class="btn btn-outline-danger btn-sm">Stop (ends turn)</button>
+                    <div class="ctl-row">
+                        <button id="at-start" type="button" class="btn btn-sm btn-danger">Start attack</button>
+                        <button id="at-roll" type="button" class="btn btn-sm btn-warning">Roll dice</button>
+                        <button id="at-stop" type="button" class="btn btn-sm btn-outline-danger">Stop</button>
+                    </div>
                 </div>
 
-                <button id="end-turn" type="button" class="btn btn-primary btn-sm">End turn</button>
+                <button id="end-turn" type="button" class="btn btn-sm btn-primary w-100">End turn</button>
             </div>
 
-            <div class="panel mb-3">
-                <h2 class="h6">Players</h2>
-                <ul id="players" class="list-unstyled small mb-0"></ul>
+            <input class="tab-input" type="radio" name="chat-tab" id="tab-log" checked />
+            <input class="tab-input" type="radio" name="chat-tab" id="tab-players" />
+            <input class="tab-input" type="radio" name="chat-tab" id="tab-countries" />
+            <div class="chat-tabs">
+                <label for="tab-log">Log</label>
+                <label for="tab-players">Players</label>
+                <label for="tab-countries">Countries</label>
             </div>
 
-            <div class="panel mb-3">
-                <h2 class="h6">Countries</h2>
-                <table id="countries" class="table table-sm table-dark align-middle small mb-0">
-                    <thead><tr><th>Country</th><th>Owner</th><th class="text-end">Soldiers</th></tr></thead>
-                    <tbody></tbody>
-                </table>
+            <div class="chat-panes">
+                <section class="pane pane-log" aria-label="Event log">
+                    <ul id="log" class="list-unstyled mb-0"></ul>
+                </section>
+                <section class="pane pane-players" aria-label="Players">
+                    <ul id="players" class="list-unstyled mb-0"></ul>
+                </section>
+                <section class="pane pane-countries" aria-label="Countries">
+                    <table id="countries" class="table table-sm align-middle mb-0">
+                        <thead><tr><th>Country</th><th>Owner</th><th class="text-end">Soldiers</th></tr></thead>
+                        <tbody></tbody>
+                    </table>
+                </section>
             </div>
-
-            <div class="panel">
-                <h2 class="h6">Event log</h2>
-                <ul id="log" class="list-unstyled small mb-0"></ul>
-            </div>
-        </div>
+        </aside>
     </div>
 </div>
 

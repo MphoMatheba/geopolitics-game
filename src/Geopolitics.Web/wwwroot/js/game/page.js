@@ -229,9 +229,13 @@ function addLog(ev) {
         say.textContent = '\u201C' + ev.commentary + '\u201D';
         li.appendChild(say);
     }
+    // like a chat: newest at the bottom, and stay at the bottom unless the player scrolled up to read
     const log = $('log');
-    log.prepend(li);
-    while (log.children.length > 300) log.lastChild.remove();
+    const pane = log.parentElement;
+    const atBottom = pane.scrollHeight - pane.scrollTop - pane.clientHeight < 80;
+    log.append(li);
+    while (log.children.length > 300) log.firstChild.remove();
+    if (atBottom) pane.scrollTop = pane.scrollHeight;
 }
 
 // How long the 3D effect for an event may run: a little less than its pause,
@@ -412,6 +416,11 @@ $('at-start').onclick = () => act('/attack', { attackerCode: $('at-from').value,
 $('at-roll').onclick = () => act('/roll');
 $('at-stop').onclick = () => act('/stop');
 $('end-turn').onclick = () => act('/end');
+// showing the log tab again: jump to the newest message (a hidden tab loses its scroll position)
+document.querySelectorAll('.tab-input').forEach((input) => input.addEventListener('change', () => {
+    const pane = $('log').parentElement;
+    pane.scrollTop = pane.scrollHeight;
+}));
 $('at-from').onchange = highlight;
 $('at-to').onchange = highlight;
 
