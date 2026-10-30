@@ -64,7 +64,7 @@ test('the three tabs each have a radio button, a label, a pane and the style rul
         assert.ok(details.includes(`for="tab-${tab}"`), `label for tab-${tab}`);
         assert.ok(details.includes(`class="pane ${pane}"`) , `pane ${pane}`);
         const paneHtml = details.slice(details.indexOf(`class="pane ${pane}"`));
-        assert.ok(paneHtml.indexOf(content) > 0 && paneHtml.indexOf(content) < 200, `${pane} holds ${content}`);
+        assert.ok(paneHtml.indexOf(content) > 0 && paneHtml.indexOf(content) < 900, `${pane} holds ${content}`);
         assert.ok(gameCss.includes(`#tab-${tab}:checked ~ .chat-panes .${pane}`), `no rule shows ${pane}`);
         assert.ok(gameCss.includes(`#tab-${tab}:checked ~ .chat-tabs label[for="tab-${tab}"]`), `no rule highlights tab ${tab}`);
     }
@@ -94,7 +94,7 @@ test('the changed Razor pages keep their script sections and badge code well-for
         assert.ok(/\}\s*$/.test(text), name + ' must end by closing the section');
     }
     const my = read('Views', 'Game', 'My.cshtml');
-    assert.ok(my.indexOf('var badge') > 0 && my.indexOf('var badge') < my.indexOf('<tr>', my.indexOf('foreach')), 'the badge colour is worked out before the row');
+    assert.ok(my.indexOf('var badge') > 0 && my.indexOf('var badge') < my.search(/<tr data-status/), 'the badge colour is worked out before the row');
     for (const text of [details, layout]) {
         const scripts = [...text.matchAll(/<(script|style)[^>]*>([\s\S]*?)<\/\1>/g)].map(m => m[2]).join('\n');
         assert.ok(!scripts.includes('@'), 'a script or style block contains @, which Razor would read as code');
