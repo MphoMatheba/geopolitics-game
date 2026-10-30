@@ -14,6 +14,21 @@
 }
 else
 {
+    <div class="row g-2 mb-3 align-items-center">
+        <div class="col-sm-5 col-md-4">
+            <input id="game-search" type="search" class="form-control" placeholder="Search by date or status" aria-label="Search games" />
+        </div>
+        <div class="col-sm-4 col-md-3">
+            <select id="game-status" class="form-select" aria-label="Filter by status">
+                <option value="">All games</option>
+                <option value="InProgress">In progress</option>
+                <option value="Won">Won</option>
+                <option value="Lost">Lost</option>
+            </select>
+        </div>
+        <div class="col-auto"><span id="game-count" class="text-muted small"></span></div>
+    </div>
+
     <table class="table table-hover align-middle">
         <thead>
             <tr><th>Started (UTC)</th><th>Status</th><th>Round</th><th></th></tr>
@@ -22,9 +37,10 @@ else
             @foreach (var game in Model)
             {
                 var state = game.Status.ToString();
+                var started = game.CreatedAtUtc.ToString("yyyy-MM-dd HH:mm");
                 var badge = state == "Won" ? "bg-warning text-dark" : state == "Lost" ? "bg-danger" : "bg-success";
-                <tr>
-                    <td>@game.CreatedAtUtc.ToString("yyyy-MM-dd HH:mm")</td>
+                <tr data-status="@state" data-started="@started">
+                    <td>@started</td>
                     <td><span class="badge @badge">@state</span></td>
                     <td>@game.Round</td>
                     <td class="text-end"><a class="btn btn-sm btn-outline-warning" asp-controller="Game" asp-action="Details" asp-route-id="@game.Id">Open</a></td>
@@ -32,4 +48,9 @@ else
             }
         </tbody>
     </table>
+}
+
+@section Scripts {
+    <script src="~/js/game/lists.js" asp-append-version="true"></script>
+    <script src="~/js/my-games.js" asp-append-version="true"></script>
 }
