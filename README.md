@@ -1,1 +1,292 @@
-# Geopolitics Game 
+# Geopolitics
+
+**A single-player, Risk-style strategy game.** You pick a country, nine random rivals join, and everyone fights
+for the world with dice. The rivals are computer players that explain every decision they make, an AI writes the
+battle commentary, and the whole thing plays out on a 3D globe with pixel-art soldiers, flags and tumbling dice.
+
+> Built for the **UCT INF4001 Honours entrance exam (2027)**. ASP.NET Core MVC, MongoDB, Three.js, Claude.
+
+<p align="center"><img src="docs/images/lineup.png" alt="Ten pixel soldiers in ten uniforms, each with a country's flag above the head" width="640"></p>
+
+---
+
+## 1. The 60-second summary
+
+- **What it is:** a turn-based conquest game. Ten countries, one winner. You win by owning all ten.
+- **How a battle works:** both sides roll one die per soldier; the higher die wins and the other soldier is lost.
+- **Who you play against:** nine computer players. Each one shows a short "Why:" line for every move, so you can
+  see what it is thinking, and an AI (Claude) narrates the battles.
+- **How it looks:** a 3D globe. Soldiers in a different uniform per player stand on their countries, each with the
+  flag of the player's home country above the head, so you can tell opponents apart at a glance.
+- **Who can do what:** anyone with a game's link can *watch* it live. Only the logged-in owner can *play* it.
+  Anyone can sign up and start their own game.
+- **Where the data lives:** an online MongoDB database. The server decides every outcome; the browser only shows it.
+
+## 2. Run it in 3 steps (any IDE, or the command line)
+
+You need the **.NET 10 SDK** ([download](https://dotnet.microsoft.com/download)) and an internet connection.
+
+1. **Unzip** the project.
+2. **Run** it, either way:
+   - open `Geopolitics.sln` in Visual Studio, JetBrains Rider or VS Code and press **Run** (start project:
+     `Geopolitics.Web`), **or**
+   - in a terminal, in the project folder: `dotnet run --project src/Geopolitics.Web`
+3. **The browser opens by itself** at `http://localhost:5033/`. Click **Sign up**, make an account, then
+   **Start a new game**.
+
+The hand-in zip already contains the database settings (`appsettings.Submission.json`), so there is nothing to
+configure. If the browser does not open, go to `http://localhost:5033/` yourself (see
+[Troubleshooting](#14-troubleshooting)).
+
+## 3. How to play
+
+Each turn you can do these things, in this order of usefulness:
+
+| Action | What it does |
+|---|---|
+| **Place reinforcements** | From round 2 you get **2 soldiers per country you own** at the start of your turn. Put them on any of your countries. |
+| **Move soldiers** | Shift soldiers between your own countries (never while an attack is under way). A country always keeps at least 1. |
+| **Attack** | Pick one of your countries (needs at least 2 soldiers) and a target. You may attack **once per turn**. |
+| **End turn** | Pass to the next player. |
+
+**You can also click countries on the globe** to fill in the attack drop-downs.
+
+### A battle, step by step
+
+Soldiers per country come from population (1 for under 5 million people, up to 9 for over 150 million).
+
+1. The number of dice rolled by *each* side is the smaller of: (attacker's soldiers − 1) and the defender's soldiers.
+   *Example: attacker 10, defender 2 → 2 dice each. Attacker 3, defender 5 → 2 dice each. Attacker 2, defender 5 → 1 die each.*
+2. Dice are paired (first with first, second with second). The **higher die wins**; the other side loses a soldier.
+   A tie changes nothing.
+3. Keep rolling until you **conquer** the country (it has no soldiers left), are **left with 1 soldier** (the attack
+   ends and the country is safe), or **stop** (which ends your turn).
+4. When you conquer a country you gain **max(2, half the defender's starting soldiers)** soldiers there.
+   *Example: conquering a country with 9 soldiers gives you max(2, 4) = 4.*
+5. A player who loses all their countries is **eliminated**. Own all ten countries and you **win**.
+
+**Fast-forward** speeds up the computer players. Every move and every "Why:" line is still shown.
+
+## 4. What makes it special
+
+| Feature | Picture |
+|---|---|
+| **Pixel-art soldiers**, one uniform per player (you are green camouflage). Up to five stand on each country, and the label shows the true number. They stand, shoot during battles, fall when a die is lost, run to conquer, and drop in as reinforcements. | <img src="docs/images/squads.png" alt="Squads of soldiers with flags above their heads" width="420"> |
+| **Watercolour dice** that tumble onto the countries and land on the number the server rolled. Green = won, red = lost. | <img src="docs/images/dice.png" alt="Six watercolour die faces" width="420"> |
+| **AI commentary** (Claude) for each battle, with built-in text as a fallback if the AI is slow or unavailable. | |
+| **A reason for every computer move**, even in fast-forward. | |
+| **Live viewing:** share the game link and anyone can watch; the page replays new moves as they happen. | |
+| **Everything drawn in code:** the soldiers, dice, brick walls and globe need no image files to host (see `tools/`). | |
+
+## 5. How it works inside
+
+```
+ Browser (Three.js globe, chat box)                       Server (ASP.NET Core)
+ ┌──────────────────────────────┐   JSON    ┌───────────────────────────────────────────────┐
+ │ page.js   buttons, log, tabs │ ───────►  │ Web        controllers, login, JSON API         │
+ │ playback.js  replays events  │           │ Services   turns, NPC brain, AI commentary      │
+ │ globe.js  3D drawing only    │ ◄───────  │ Engine     dice and battle rules (pure code)    │
+ └──────────────────────────────┘  events   │ Data       MongoDB documents and repositories   │
+                                            └───────────────────────┬─────────────────────────┘
+                                                                    ▼
+                                                           MongoDB Atlas (online)
+```
+
+**The golden rule: the server decides, the browser displays.**
+
+1. You click *Roll dice*. The browser sends one JSON request.
+2. The server checks it is legal and that you own the game, rolls the dice, and saves the new state and a list of
+   *events* ("Germany rolled [6, 2] against France [3, 5]...").
+3. The reply carries the new state and the events. The browser puts the events in a **queue** and plays them one at a
+   time on the globe (dice tumble, a soldier falls), then resets its picture to the server's state.
+4. Watchers poll every 2 seconds and replay the same events, so a shared link is a live view.
+
+Why this design?
+- **Cheating is impossible from the browser:** it never decides anything. Even the phase "an attack is in progress"
+  is saved in the database, so closing the tab or refreshing cannot undo it.
+- **The rules are easy to test:** the Engine has no database and no web code. Dice come in through an interface, so
+  tests use fixed dice and check exact results.
+- **Computer players cannot cheat:** they use the very same move functions as you, so an illegal NPC move is refused.
+
+### The four projects
+
+| Project | Job | Key files |
+|---|---|---|
+| `Geopolitics.Engine` | Pure game rules | `BattleEngine`, `SoldierTable`, `IDice` |
+| `Geopolitics.Data` | MongoDB: documents, repositories behind interfaces | `MongoContext`, `GameDoc`, `UserDoc`, `GameEvent` |
+| `Geopolitics.Services` | Game flow, NPC brain, AI commentary | `GameActions`, `TurnManager`, `NpcStrategy`, `Odds`, `ClaudeCommentator` |
+| `Geopolitics.Web` | Controllers, API, views, browser scripts | `GameController`, `GamesApiController`, `AccountController`, `wwwroot/js/game/` |
+
+## 6. Database design (MongoDB)
+
+MongoDB suits this project because a game is one self-contained object that is always read and written as a whole,
+while the log of what happened only ever grows.
+
+| Collection | One document is... | Important fields |
+|---|---|---|
+| `users` | an account | username (unique), password hash and salt, created date |
+| `games` | a whole game | owner, status (`InProgress`/`Won`/`Lost`), round, phase (`Action`/`Attacking`), current player, pending reinforcements, the active attack, **`players[]`** (name, human or NPC, home country, turn order, eliminated) and **`countries[]`** (code, name, population, owner, soldiers), and a `Version` number |
+| `events` | one thing that happened | game id, **sequence number**, round, type, player, dice rolls and losses, message, the NPC's justification, the AI commentary, and the countries and counts involved |
+
+Design decisions:
+- **Players and countries are embedded in the game document.** They are small (ten countries), always used together
+  with the game, and a single save keeps them consistent.
+- **Events are a separate collection** with a growing sequence number, so a client asks "give me events after N" and
+  never downloads the history again. This also gives the replay and live viewing for free.
+- **Indexes** (created at start-up): unique username; games by owner and date (for *My games*); events by game and
+  sequence (unique).
+- **`Version`** gives optimistic concurrency: two clicks or two tabs cannot apply the same move twice.
+- Access is only through repository interfaces (`IUserRepository`, `IGameRepository`, `IEventRepository`), so the
+  rest of the code never touches the database driver.
+
+## 7. Security
+
+| Protection | Where |
+|---|---|
+| Passwords stored as salted hashes (ASP.NET Core's password hasher), never in plain text | `AccountService` |
+| Sign-up rules checked on the server: username 3 to 20 letters, numbers or underscores; password 8 to 100 characters with a letter and a number | `AccountRules`, view-model attributes |
+| Cookie login: HttpOnly, SameSite, Secure outside development, 7-day sliding expiry | `Program.cs` |
+| Anti-forgery tokens on every form (sign-up, log in, log out, new game) | `AccountController`, `GameController` |
+| Login and sign-up attempts limited per IP address | rate limiter in `Program.cs` |
+| Reading a game is public, but **every move needs a login** and the service checks the caller owns the game | `GamesApiController`, `GameService` |
+| The move API accepts JSON only, so another website cannot post to it | `[Consumes("application/json")]` |
+| Visitors never see private data: the page receives a trimmed copy of the game, not the database record | `GameSnapshot` |
+
+## 8. The computer players and the AI
+
+**The NPC brain** (`NpcStrategy`) is the same for every computer player. It works from the *exact* probability of
+winning a fight (`Odds`, which works through every possible dice result), not from guesses:
+
+1. **Reinforcements:** try each of its countries as a launch point, and put all the new soldiers where they set up the
+   best attack. If no attack looks good enough, strengthen its weakest country.
+2. **Attack:** only if the chance to conquer is at least **55%**. It scores each possible attack as
+   *chance × value − (1 − chance) × cost*, where value counts the soldiers gained, the extra reinforcements a new
+   country brings, and a bonus for knocking out a rival. It takes the best-scoring attack.
+3. **Keep rolling or stop:** it carries on while the chance stays at or above **40%**, then ends its turn.
+4. **Transfers:** after attacking it moves a spare soldier into any country left with just 1.
+
+Every decision carries a one-line reason built from the same numbers (for example "7 vs 1 soldiers gives about 98%
+to conquer"), and the log shows it as **Why:**.
+
+**The AI commentary** (`ClaudeCommentator`, `CommentaryService`): after a move, the events are grouped into battles and
+sent to Claude, which writes one dramatic sentence per battle. It has a time limit; if Claude is slow, missing a key,
+or offline, built-in template text is used instead, so the game never waits or breaks.
+
+## 9. Does it meet the exam brief?
+
+| Requirement in the brief | Where it is done |
+|---|---|
+| Single player against NPCs; win by conquering the world | `GameFactory`, `TurnManager` |
+| 10 countries: yours (chosen from the world list) plus 9 random | *New game* page, `GameFactory` |
+| Soldiers by population table | `SoldierTable` |
+| Random first player; NPC turns simulated | `GameFactory`, `NpcTurnRunner` |
+| One attack per turn; at least 2 soldiers to attack; transfers keeping 1 soldier | `GameActions` |
+| Dice rules, pairing, ties, conquest reward, elimination | `BattleEngine`, `GameActions` |
+| Reinforcements: 2 per country from round 2, placed anywhere | `TurnManager`, *Place reinforcements* |
+| Fast-forward that still shows the moves | `playback.js`, *Fast-forward* button |
+| All countries and soldier counts visible at all times | labels on the globe, and the always-visible **roster** under the globe |
+| Battles shown visually, with AI commentary | 3D dice and soldiers, `ClaudeCommentator` |
+| NPCs play to win and justify every decision, also in fast-forward | `NpcStrategy`, the **Why:** lines |
+| Anyone can watch via the link; only the logged-in owner plays; anyone can sign up | public `GET`, `[Authorize]` moves, owner check |
+| NoSQL database, online | MongoDB Atlas |
+| Web application on a server | ASP.NET Core; see [Deployment](#12-deployment) |
+
+### Marking guide: where to look for each criterion
+
+| Marksheet criterion | Evidence |
+|---|---|
+| Database layer (separate, configured, appropriate, online) | `src/Geopolitics.Data`, interfaces, MongoDB Atlas, section 6 |
+| Connection to the database | `MongoContext`: connects and creates indexes when the app starts (see the start-up log) |
+| Design of the database | Section 6 |
+| Coding structure (framework, best practice) | ASP.NET Core **MVC**, four layers, dependency injection, section 5 |
+| Object-oriented concepts (classes, encapsulation) | repositories behind interfaces, `GameDoc`/`CountryState`/`PlayerState` classes, `GameSnapshot` records, services such as `GameService` and `AccountService`, `IDice` |
+| Data validation, controls, security | Section 7 |
+| Functionality; lists, searching, filtering, viewing | *My games*: list with **search** (date or status) and **status filter**; game view and public viewing; *Countries* tab with **search** (country or owner) and **owner filter**; *Players* tab; an always-visible roster of all ten countries |
+| User interface; ease of navigation | brick-wall site, 3D globe, chat-style side panel with tabs, navigation bar |
+| Authentication and authorisation | Section 7 |
+| Sophistication and complexity | battle engine, NPC odds and scoring, AI commentary with fallback, concurrency control, replay queue, 3D rendering |
+| AI application | `ClaudeCommentator` (section 8) |
+
+## 10. Bonus feature
+
+**3D graphics and animation** (idea 4 in the brief): the Three.js globe, pixel-art soldiers with flags, watercolour
+dice, battle animations and the brick-wall interface. (Sharing a link to watch a game live is also in, as part of the
+access-control requirement.)
+
+## 11. Tests
+
+```
+dotnet test                              # C# tests: rules, NPC, commentary, snapshots, the browser opener
+node --test tests/web-js/*.test.js       # tests for the browser scripts (needs Node 18 or newer)
+```
+
+There are over a hundred of each. The C# tests cover the battle engine with fixed dice, the NPC strategy, the move
+rules, the AI commentary (with a fake web server) and the game snapshot. The browser tests run the real globe code
+(dice, soldiers, flags, playback) without a browser.
+
+## 12. Deployment
+
+A `Dockerfile` is included, so any host that runs containers works (Render, Azure App Service, Fly.io, Railway, ...).
+
+1. Build from the `Dockerfile` in the project folder.
+2. Set these environment variables:
+   `Mongo__ConnectionString`, `Mongo__DatabaseName`, `Anthropic__ApiKey` (optional),
+   `ASPNETCORE_FORWARDEDHEADERS_ENABLED=true` (the host handles HTTPS) and `ASPNETCORE_URLS=http://+:8080`.
+3. In MongoDB Atlas, allow the host's IP addresses (Network Access).
+
+## 13. Settings, submission details and the hand-in zip
+
+| Setting | Meaning | Set with |
+|---|---|---|
+| `Mongo:ConnectionString` | MongoDB connection string (**required**) | `appsettings.Submission.json`, user-secrets, or env var `Mongo__ConnectionString` |
+| `Mongo:DatabaseName` | database name (default `geopolitics`) | same |
+| `Anthropic:ApiKey` | key for the AI commentary (optional; built-in text without it) | same, or `Anthropic__ApiKey` |
+| `Startup:OpenBrowser` | open the browser at start-up (on in Development, off otherwise) | `Startup__OpenBrowser=true` or `false` |
+
+To set up your own copy, copy `src/Geopolitics.Web/appsettings.Submission.example.json` to `appsettings.Submission.json`
+and fill it in (that file is git-ignored). If the database setting is missing, the app says so and stops.
+
+**Making the zip to hand in:**
+
+```
+git add -A && git commit -m "Final"
+node tools/make-submission.js            # add --with-ai-key to include the Anthropic key (use a key with a spend limit)
+```
+
+This writes `submission/Geopolitics-INF4001.zip`: every committed file plus the database settings, without `bin`, `obj`
+or `.git`.
+
+**Submission details (to complete before handing in):**
+
+- **Deployed site:** `<fill in the URL>`
+- **Application login for the markers:** user `<fill in>` / password `<fill in>`
+- **Database access:** the three marker accounts (ammarcanani@gmail.com, mc.tanner@uct.ac.za,
+  ridewaan.hanslo@uct.ac.za) were added to the MongoDB Atlas project; the connection string is in
+  `appsettings.Submission.json`.
+
+## 14. Troubleshooting
+
+| Problem | What to do |
+|---|---|
+| The browser did not open | Go to `http://localhost:5033/`. Opening is automatic in Development; check the first lines of the console for the address. Set `Startup__OpenBrowser=true` to force it. |
+| "No database settings found" | `appsettings.Submission.json` is missing. Copy the example file and fill it in (section 13). |
+| The page says *Loading...* or the globe is blank | Open **`http://localhost:5033/diagnose.html`** (no login needed). It tests the browser (WebGL), every game file and module, runs a demo globe, and inspects your real game page. The first red line names the problem. |
+| The port is already in use | Run `dotnet run --project src/Geopolitics.Web --urls http://localhost:5050` |
+| Can't connect to the database | Check the internet connection and that your IP address is allowed in MongoDB Atlas (Network Access). |
+| Commentary looks plain | No Anthropic key is set, so the built-in text is used. The game works the same. |
+
+## 15. Folder map
+
+```
+Geopolitics.sln          open this in any IDE
+src/                     the four projects (Engine, Data, Services, Web)
+tests/                   C# tests (xUnit) and tests/web-js (Node tests for the browser scripts)
+tools/                   scripts that generate the artwork and the hand-in zip
+docs/images/             pictures used by this README
+Dockerfile               for deployment
+```
+
+## 16. Credits
+
+Three.js (MIT), flag-icons (MIT), world-atlas map data (ISC), Permanent Marker font (Apache 2.0). Anthropic's Claude writes
+the commentary. The soldier and dice artwork, brick walls and globe are drawn in code (see `tools/`).
