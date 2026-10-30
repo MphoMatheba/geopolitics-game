@@ -70,6 +70,20 @@
 #narration #why { color: #8ab8ff; font-style: italic; }
 #narration #say { color: #86d99f; font-style: italic; }
 
+/* every country and its soldiers, always visible under the stage */
+.roster {
+  display: flex; flex-wrap: wrap; gap: .35rem; margin-top: .7rem; padding: .5rem .65rem;
+  background: rgba(14, 10, 8, .84); border: 1px solid rgba(255, 190, 120, .16); border-radius: .75rem;
+}
+.chip {
+  display: inline-flex; align-items: center; gap: .3rem; padding: .15rem .6rem; font-size: .8rem; white-space: nowrap;
+  color: #f3e9df; background: rgba(255, 255, 255, .07); border: 1px solid rgba(255, 255, 255, .13); border-radius: 1rem;
+}
+.chip b { color: #fff; }
+
+.pane-filter { position: sticky; top: -.55rem; z-index: 1; display: flex; gap: .35rem; margin: -.55rem -.65rem .5rem; padding: .5rem .65rem .4rem; background: rgba(14, 10, 8, .96); }
+.pane-filter .form-select { flex: 0 0 42%; }
+
 #ff.active { background: var(--bs-warning); color: #000; }
 
 /* ----- the chat-style box on the side ----- */

@@ -4,10 +4,12 @@
 // board is reset to it.
 import './playback.js';
 import './geo.js';
+import './lists.js';
 import { Globe } from './globe.js';
 
 const { Playback } = window.GamePlayback;
 const geo = window.GameGeo;
+const lists = window.GameLists;
 
 const $ = (id) => document.getElementById(id);
 const gameId = $('app').dataset.gameId;
@@ -22,6 +24,8 @@ let globe = null;
 let tumble = null;
 let toastTimer = null;
 let selected = { from: null, to: null };
+let lastBoard = null;                       // the board last painted, so the lists can be filtered again
+const countryFilter = { text: '', owner: '' };
 
 const playback = new Playback({
     onStep: (ev, board) => showEvent(ev, board),
@@ -62,14 +66,45 @@ function toast(text) {
 
 function paintBoard(board) {
     if (!snap) return;
+    lastBoard = board;
     if (globe) globe.update(board, snap.players);
+    paintLists(board);
+}
+
+// The roster (every country and its soldiers, always visible) and the Countries tab (searchable, filterable).
+function paintLists(board) {
+    const rows = Object.keys(board.countries)
+        .map(code => ({ code, name: countryName(code), ownerName: playerName(board.countries[code].ownerPlayerId), ...board.countries[code] }))
+        .sort((a, b) => b.soldiers - a.soldiers || a.name.localeCompare(b.name));
+
+    const roster = $('roster');
+    roster.innerHTML = '';
+    for (const r of rows) {
+        const chip = document.createElement('span');
+        chip.className = 'chip';
+        chip.title = r.ownerName;
+        const dot = document.createElement('span');
+        dot.className = 'dot';
+        dot.style.background = colourOf(r.ownerPlayerId);
+        const count = document.createElement('b');
+        count.textContent = r.soldiers;
+        chip.append(dot, ' ' + r.name + ' ', count);
+        roster.appendChild(chip);
+    }
 
     const tbody = $('countries').querySelector('tbody');
     tbody.innerHTML = '';
-    const rows = Object.keys(board.countries)
-        .map(code => ({ code, name: countryName(code), ...board.countries[code] }))
-        .sort((a, b) => b.soldiers - a.soldiers || a.name.localeCompare(b.name));
-    for (const r of rows) {
+    const shown = lists.filterCountries(rows, countryFilter);
+    if (shown.length === 0) {
+        const tr = document.createElement('tr');
+        const td = document.createElement('td');
+        td.colSpan = 3;
+        td.className = 'text-muted';
+        td.textContent = 'No country matches.';
+        tr.appendChild(td);
+        tbody.appendChild(tr);
+    }
+    for (const r of shown) {
         const tr = document.createElement('tr');
         const dot = document.createElement('span');
         dot.className = 'dot';
@@ -89,6 +124,7 @@ function paintBoard(board) {
 function paintPlayers() {
     const ul = $('players');
     ul.innerHTML = '';
+    fillOwnerFilter();
     for (const p of snap.players) {
         const li = document.createElement('li');
         if (p.playerId === snap.currentPlayerId && snap.status === 'InProgress') li.className = 'current';
@@ -100,6 +136,24 @@ function paintPlayers() {
             (p.countriesOwned === 1 ? 'country' : 'countries') + (p.isEliminated ? ' \u00B7 out' : ''));
         ul.appendChild(li);
     }
+}
+
+// the "owner" drop-down on the Countries tab lists every player (it keeps the choice already made)
+function fillOwnerFilter() {
+    const select = $('country-owner');
+    const keep = select.value;
+    select.innerHTML = '';
+    const all = document.createElement('option');
+    all.value = '';
+    all.textContent = 'All owners';
+    select.appendChild(all);
+    for (const p of snap.players) {
+        const o = document.createElement('option');
+        o.value = p.playerId;
+        o.textContent = p.name + (p.isHuman ? ' (you)' : '');
+        select.appendChild(o);
+    }
+    select.value = Array.from(select.options).some(o => o.value === keep) ? keep : '';
 }
 
 function fillSelect(select, countries) {
@@ -421,6 +475,8 @@ document.querySelectorAll('.tab-input').forEach((input) => input.addEventListene
     const pane = $('log').parentElement;
     pane.scrollTop = pane.scrollHeight;
 }));
+$('country-search').addEventListener('input', (e) => { countryFilter.text = e.target.value; if (lastBoard) paintLists(lastBoard); });
+$('country-owner').addEventListener('change', (e) => { countryFilter.owner = e.target.value; if (lastBoard) paintLists(lastBoard); });
 $('at-from').onchange = highlight;
 $('at-to').onchange = highlight;
 
