@@ -480,3 +480,10 @@ $RECYCLE.BIN/
 
 # Vim temporary swap files
 *.swp
+
+# Database settings for the copy that is handed in (never commit these) and the zips made from it
+appsettings.Submission.json
+submission/
+# Files that operating systems create
+.DS_Store
+Thumbs.db

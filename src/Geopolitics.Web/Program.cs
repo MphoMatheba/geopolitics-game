@@ -9,10 +9,21 @@ using Microsoft.AspNetCore.RateLimiting;
 
 var builder = WebApplication.CreateBuilder(args);
 
+// A copy of the project that is handed in carries its database settings in this file, so it runs with no set-up
+// (see the README). It is never committed to GitHub.
+builder.Configuration.AddJsonFile("appsettings.Submission.json", optional: true, reloadOnChange: false);
+
 builder.Services.AddControllersWithViews();
 
 // Database layer: settings come from user-secrets locally, environment variables in production.
 var mongoSettings = builder.Configuration.GetSection("Mongo").Get<MongoSettings>() ?? new MongoSettings();
+if (string.IsNullOrWhiteSpace(mongoSettings.ConnectionString))
+{
+    Console.Error.WriteLine("No database settings found. Copy appsettings.Submission.example.json to appsettings.Submission.json " +
+                            "and fill in the Mongo connection string (or use user-secrets or the Mongo__ConnectionString environment " +
+                            "variable). See the README.");
+    return 1;
+}
 builder.Services.AddSingleton(new MongoContext(mongoSettings));
 builder.Services.AddSingleton<CountryCatalog>();
 builder.Services.AddSingleton<IUserRepository, MongoUserRepository>();
@@ -118,5 +129,19 @@ app.MapControllerRoute(
         name: "default",
         pattern: "{controller=Home}/{action=Index}/{id?}")
     .WithStaticAssets();
+
+// Open the game in the browser once the server is ready, so it works the same from any IDE or from the command line.
+// On by default in Development; set Startup:OpenBrowser to true or false to change that.
+app.Lifetime.ApplicationStarted.Register(() =>
+{
+    var addresses = app.Services.GetRequiredService<Microsoft.AspNetCore.Hosting.Server.IServer>()
+        .Features.Get<Microsoft.AspNetCore.Hosting.Server.Features.IServerAddressesFeature>()?.Addresses
+        ?? Array.Empty<string>();
+    var url = BrowserLauncher.ChooseUrl(addresses);
+    if (url == null) return;
+    app.Logger.LogInformation("Geopolitics is running at {Url}", url);
+    if (app.Configuration.GetValue("Startup:OpenBrowser", app.Environment.IsDevelopment()) && !BrowserLauncher.TryOpen(url))
+        app.Logger.LogInformation("Open {Url} in your browser.", url);
+});
 
 app.Run();
