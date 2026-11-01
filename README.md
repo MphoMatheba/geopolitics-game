@@ -374,7 +374,7 @@ or `.git`.
 - **Deployed site:** `https://geopolitics-game-9oxl.onrender.com`
 - **Application login for the markers:** user `marker` / password `Marker2027Demo`
 - **Database access:** the three marker accounts (ammarcanani@gmail.com, mc.tanner@uct.ac.za,
-  ridewaan.hanslo@uct.ac.za) were added to the MongoDB Atlas project; the connection string is in
+  ridewaan.hanslo@uct.ac.za) were invited to the MongoDB Atlas project; the connection string is in
   `appsettings.Submission.json`.
 
 ## 14. Troubleshooting
