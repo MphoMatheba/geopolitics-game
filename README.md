@@ -75,7 +75,7 @@ Soldiers per country come from population (1 for under 5 million people, up to 9
 |---|---|
 | **Pixel-art soldiers**, one uniform per player (you are green camouflage). Up to five stand on each country, and the label shows the true number. They stand, shoot during battles, fall when a die is lost, run to conquer, and drop in as reinforcements. | <img src="docs/images/squads.png" alt="Squads of soldiers with flags above their heads" width="420"> |
 | **Watercolour dice** that tumble onto the countries and land on the number the server rolled. Green = won, red = lost. | <img src="docs/images/dice.png" alt="Six watercolour die faces" width="420"> |
-| **AI commentary** (Claude) for each battle, with built-in text as a fallback if the AI is slow or unavailable. | |
+| **AI commentary** for each battle, with built-in text as a fallback if the AI is slow or unavailable. | |
 | **A reason for every computer move**, even in fast-forward. | |
 | **Live viewing:** share the game link and anyone can watch; the page replays new moves as they happen. | |
 | **Everything drawn in code:** the soldiers, dice, brick walls and globe need no image files to host (see `tools/`). | |
