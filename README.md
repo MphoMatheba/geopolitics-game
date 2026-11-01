@@ -186,6 +186,8 @@ to conquer"), and the log shows it as **Why:**.
 sent to Claude, which writes one dramatic sentence per battle. It has a time limit; if Claude is slow, missing a key,
 or offline, built-in template text is used instead, so the game never waits or breaks.
 
+> **Note for markers:** the deployed site currently runs on the built-in fallback commentary, because the Anthropic account used for this project has no API credit. The Claude integration is complete and tested (with a fake web server). It switches on as soon as a funded key is set in `Anthropic__ApiKey` (or in `appsettings.Submission.json` for a local run).
+
 ## 9. Does it meet the exam brief?
 
 | Requirement in the brief | Where it is done |
