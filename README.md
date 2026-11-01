@@ -11,6 +11,30 @@ battle commentary, and the whole thing plays out on a 3D globe with pixel-art so
 
 ---
 
+## Markers: start here (2 minutes)
+
+| | |
+|---|---|
+| **Live site** | https://geopolitics-game-9oxl.onrender.com (free hosting: if the site has been idle, the first load can take up to a minute) |
+| **Login** | user `marker` / password `Marker2027Demo` (or sign up with your own account; anyone can) |
+| **Run it locally instead** | open `Geopolitics.sln` and press Run, or `dotnet run --project src/Geopolitics.Web`. The zip already holds the database settings. |
+| **Bonus feature** | 3D graphics and animation (see [Finding your way around](#finding-your-way-around)) |
+
+**A quick check, in order:**
+
+1. Open the live site and **log in**. Click **New game** and choose a country.
+2. On the game page you should see the **3D globe**, a label with a soldier count on every country, and a **roster** of all ten countries under the globe.
+3. On your turn, **attack** (click two countries, press **Start attack**, then **Roll dice**). Watch the dice, the falling soldiers and the **Log** tab, where every computer move has a blue **Why:** line.
+4. Press **Fast-forward** while the computer players play: every move and reason is still shown.
+5. Open **My games** to try the **search** and the **status filter**, and the **Countries** tab to try its search and owner filter.
+6. Copy the game's address into a private window: you can **watch** it live, but you cannot play.
+
+**Where to find the evidence:** the brief, requirement by requirement, is in [Does it meet the exam brief?](#9-does-it-meet-the-exam-brief), with a marksheet map under it. The design explanations are in [Database design](#6-database-design-mongodb), [Security](#7-security) and [The computer players and the AI](#8-the-computer-players-and-the-ai).
+
+**One honest note about the AI commentary:** the live site currently shows the built-in fallback commentary, because the Anthropic account used for this project has no API credit. The Claude integration is written and tested, and switches on as soon as a funded key is set (see section 8). Everything else on the site is live.
+
+---
+
 ## 1. The 60-second summary
 
 - **What it is:** a turn-based conquest game. Ten countries, one winner. You win by owning all ten.
@@ -68,6 +92,68 @@ Soldiers per country come from population (1 for under 5 million people, up to 9
 5. A player who loses all their countries is **eliminated**. Own all ten countries and you **win**.
 
 **Fast-forward** speeds up the computer players. Every move and every "Why:" line is still shown.
+
+### Finding your way around
+
+The app has a handful of pages. A bar at the top of every page lets you move between them.
+
+**The top bar**
+
+| You are... | You see | What it is for |
+|---|---|---|
+| Signed out | **Log in**, **Sign up** (top right) | Make an account or sign in. You can still *watch* any game from its link. |
+| Signed in | **New game**, **My games** (top left), your username and **Log out** (top right) | Start a game, go back to your list, or sign out. |
+| Anywhere | **Geopolitics** (top left) | Takes you to the home page. |
+
+**The pages**
+
+| Page | How to get there | What you do there |
+|---|---|---|
+| **Home** | Click **Geopolitics** | A short welcome, the line-up of ten soldiers with their flags, and buttons to start or open games. |
+| **Sign up / Log in** | Top right | Create an account (username 3 to 20 letters, numbers or underscores; password of 8 or more characters with a letter and a number), or sign in. |
+| **New game** | Top bar | Pick your home country from the world list. Nine random rivals are added and the game opens. |
+| **My games** | Top bar | Your list of games with the date started (UTC), status (in progress, won or lost) and round. Type in the search box to find a game by date or status, or use the status drop-down. The counter ("Showing 1 of 3 games") tells you what the filter is doing. Click **Open** to go into a game. |
+| **The game page** | **Open** on *My games*, or a link someone shared | Where you play or watch. Described below. |
+| **Page check** | Type `/diagnose.html` after the site address | A health check for when the globe is blank. See [Troubleshooting](#14-troubleshooting). |
+
+**The game page, area by area**
+
+| Area | Where | What it shows or does |
+|---|---|---|
+| **Top strip** | Very top | **Back to My games** (when signed in), the game's status line (whose turn it is, or the result), a **Fast-forward** button (only while the computer players are taking their turns) and a badge saying whether you are playing or spectating. |
+| **The globe** | Big area on the left | The ten countries. Drag the globe to turn it. Each country has a label with its name and its **true** soldier count, and a squad of up to five pixel soldiers wearing their owner's uniform with the owner's home flag above their heads. Click a label to choose that country for an attack. |
+| **Battle card** | On the globe, during a fight | The dice for the attacker and the defender, and who won each pair. |
+| **Roster** | Strip under the globe | Every country and its soldiers, always visible, even when the globe is turned away from it. |
+| **Narration** | Under the roster | What is happening right now, the computer player's reason (**Why:**) and the AI commentary. |
+| **Controls** | Top of the side panel (owner only, on your turn) | **Place reinforcements**, **Move soldiers**, **Attack** (Start attack, Roll dice, Stop) and **End turn**. Visitors never see these. |
+| **Log tab** | Side panel | A chat-style history of every event, newest at the bottom. |
+| **Players tab** | Side panel | Who is playing and who has been eliminated. |
+| **Countries tab** | Side panel | A table of every country and its owner and soldiers, with a **search box** (country or owner) and an **owner filter**. |
+
+**What the colours and signs mean**
+
+| What you see | Meaning |
+|---|---|
+| Blue italic **Why:** line in the log | The computer player's reason for its move. |
+| Green italic line in the log | The AI commentary for that battle. |
+| A die that turns **green** / **red** / stays white | It won / lost / tied its pair. |
+| Green camouflage soldiers | You. Each rival has its own uniform. |
+| A coloured ring under a country | Its owner's colour (you are always gold). |
+| A number on a label | The true soldier count, even when fewer soldiers are drawn. |
+
+**Your first turn, step by step**
+
+1. **Sign up** (or log in) and click **New game**. Choose your home country.
+2. On the game page, wait for your turn. If the computer players go first, press **Fast-forward** to speed them up. Every move and every **Why:** line is still shown.
+3. When the status line says it is your turn, **place reinforcements** (from round 2: 2 soldiers for each country you own). Choose a country, a number and press **Place**.
+4. **Attack:** choose where to attack from and where to attack (or click the two countries on the globe), then press **Start attack** and **Roll dice**. Keep rolling, or press **Stop**. You may attack once per turn.
+5. Optionally **move soldiers** between your own countries (a country always keeps at least 1).
+6. Press **End turn**. Watch the rivals play, read their **Why:** lines in the **Log** tab, and use the **Countries** tab to search or filter.
+7. Go **Back to My games** whenever you like. The game is saved, so you can open it again later and carry on.
+
+**Watching someone else's game**
+
+Copy the address of a game page from the browser and open it in another window (or send it to a friend). Without logging in you see the same globe, roster and log, with a **Spectating** badge and no controls. The page checks for news every 2 seconds, so moves appear live. Only the logged-in owner can play.
 
 ## 4. What makes it special
 
