@@ -13,6 +13,10 @@
 <div id="app" data-game-id="@Model">
     <div class="game-top">
         <div>
+            @if (User.Identity?.IsAuthenticated == true)
+            {
+                <a class="small text-decoration-none d-inline-block mb-1" asp-controller="Game" asp-action="My">&larr; Back to My games</a>
+            }
             <h1 class="h4 mb-0">Geopolitics</h1>
             <div id="status" class="game-status">Loading...</div>
         </div>
