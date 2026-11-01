@@ -406,6 +406,26 @@ Dockerfile               for deployment
 Three.js (MIT), flag-icons (MIT), world-atlas map data (ISC), Permanent Marker font (Apache 2.0). Anthropic's Claude writes
 the commentary. The soldier and dice artwork, brick walls and globe are drawn in code (see `tools/`).
 
+## 17. In plain words
+
+| Word | What it means here |
+|---|---|
+| **NPC** | A computer-controlled player. |
+| **Server / browser** | The server is the program that holds the rules and the data; the browser is your window onto it. |
+| **API** | The menu of requests the browser can send to the server (for example "roll the dice"). |
+| **JSON** | A simple text format for sending data between browser and server. |
+| **MongoDB / NoSQL** | A database that stores whole documents instead of rows in tables. |
+| **Atlas** | MongoDB's online hosting, so the database is reachable from anywhere. |
+| **Repository** | The one class that reads and writes one kind of data in the database. |
+| **Interface** | A promise of what a class can do, without saying how. It lets tests swap in a fake (such as fixed dice). |
+| **Dependency injection** | Classes are given the things they need instead of creating them, which makes them easy to test and swap. |
+| **MVC** | Model-View-Controller: data, pages and the code that connects them are kept in separate places. |
+| **Hash and salt** | A one-way scramble of a password, plus a random extra so the same password never looks the same twice. |
+| **Cookie** | A small note the browser keeps so the site knows you are still logged in. |
+| **Rate limit** | A cap on how many tries one address gets per minute. |
+| **Container / Docker** | A sealed package of the app that runs the same on any host. |
+| **Environment variable** | A setting given to the app from outside, used to keep secrets out of the code. |
+
 ## Author
 
 Mpho Matheba
