@@ -286,7 +286,6 @@ docs/images/             pictures used by this README
 Dockerfile               for deployment
 ```
 
-## 16. Credits
+## Author
 
-Three.js (MIT), flag-icons (MIT), world-atlas map data (ISC), Permanent Marker font (Apache 2.0). Anthropic's Claude writes
-the commentary. The soldier and dice artwork, brick walls and globe are drawn in code (see `tools/`).
+Mpho Matheba
