@@ -5,7 +5,6 @@ for the world with dice. The rivals are computer players that explain every deci
 battle commentary, and the whole thing plays out on a 3D globe with pixel-art soldiers, flags and tumbling dice.
 
 > Built for the **UCT INF4001 Honours entrance exam (2027)**. ASP.NET Core MVC, MongoDB, Three.js, Claude.
-> Not sure what a word means? See [In plain words](#17-in-plain-words) at the end.
 
 <p align="center"><img src="docs/images/lineup.png" alt="Ten pixel soldiers in ten uniforms, each with a country's flag above the head" width="640"></p>
 
