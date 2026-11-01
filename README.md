@@ -5,6 +5,7 @@ for the world with dice. The rivals are computer players that explain every deci
 battle commentary, and the whole thing plays out on a 3D globe with pixel-art soldiers, flags and tumbling dice.
 
 > Built for the **UCT INF4001 Honours entrance exam (2027)**. ASP.NET Core MVC, MongoDB, Three.js, Claude.
+> Not sure what a word means? See [In plain words](#17-in-plain-words) at the end.
 
 <p align="center"><img src="docs/images/lineup.png" alt="Ten pixel soldiers in ten uniforms, each with a country's flag above the head" width="640"></p>
 
@@ -40,7 +41,7 @@ configure. If the browser does not open, go to `http://localhost:5033/` yourself
 
 ## 3. How to play
 
-Each turn you can do these things, in this order of usefulness:
+Each turn you can do these things:
 
 | Action | What it does |
 |---|---|
@@ -49,7 +50,8 @@ Each turn you can do these things, in this order of usefulness:
 | **Attack** | Pick one of your countries (needs at least 2 soldiers) and a target. You may attack **once per turn**. |
 | **End turn** | Pass to the next player. |
 
-**You can also click countries on the globe** to fill in the attack drop-downs.
+**You can also click countries on the globe** to fill in the attack drop-downs. A **Back to My games** link at the
+top of the game page takes you back to your list of games.
 
 ### A battle, step by step
 
@@ -94,12 +96,13 @@ Soldiers per country come from population (1 for under 5 million people, up to 9
 
 **The golden rule: the server decides, the browser displays.**
 
-1. You click *Roll dice*. The browser sends one JSON request.
+1. You click *Roll dice*. The browser sends one JSON request (a small package of text data).
 2. The server checks it is legal and that you own the game, rolls the dice, and saves the new state and a list of
    *events* ("Germany rolled [6, 2] against France [3, 5]...").
-3. The reply carries the new state and the events. The browser puts the events in a **queue** and plays them one at a
-   time on the globe (dice tumble, a soldier falls), then resets its picture to the server's state.
-4. Watchers poll every 2 seconds and replay the same events, so a shared link is a live view.
+3. The reply carries the new state and the events. The browser puts the events in a **queue** (a waiting line) and
+   plays them one at a time on the globe (dice tumble, a soldier falls), then resets its picture to the server's state.
+4. Watchers poll every 2 seconds (the page asks the server "anything new?") and replay the same events, so a shared
+   link is a live view.
 
 Why this design?
 - **Cheating is impossible from the browser:** it never decides anything. Even the phase "an attack is in progress"
@@ -109,6 +112,9 @@ Why this design?
 - **Computer players cannot cheat:** they use the very same move functions as you, so an illegal NPC move is refused.
 
 ### The four projects
+
+The code is split into four layers. Each layer only talks to the one below it, so a change in one place does not
+break the others.
 
 | Project | Job | Key files |
 |---|---|---|
@@ -120,7 +126,8 @@ Why this design?
 ## 6. Database design (MongoDB)
 
 MongoDB suits this project because a game is one self-contained object that is always read and written as a whole,
-while the log of what happened only ever grows.
+while the log of what happened only ever grows. MongoDB stores *documents* (think of one document as one filled-in
+form, saved as a unit) grouped into *collections* (think of a collection as a drawer of similar forms).
 
 | Collection | One document is... | Important fields |
 |---|---|---|
@@ -128,34 +135,41 @@ while the log of what happened only ever grows.
 | `games` | a whole game | owner, status (`InProgress`/`Won`/`Lost`), round, phase (`Action`/`Attacking`), current player, pending reinforcements, the active attack, **`players[]`** (name, human or NPC, home country, turn order, eliminated) and **`countries[]`** (code, name, population, owner, soldiers), and a `Version` number |
 | `events` | one thing that happened | game id, **sequence number**, round, type, player, dice rolls and losses, message, the NPC's justification, the AI commentary, and the countries and counts involved |
 
-Design decisions:
-- **Players and countries are embedded in the game document.** They are small (ten countries), always used together
-  with the game, and a single save keeps them consistent.
-- **Events are a separate collection** with a growing sequence number, so a client asks "give me events after N" and
-  never downloads the history again. This also gives the replay and live viewing for free.
-- **Indexes** (created at start-up): unique username; games by owner and date (for *My games*); events by game and
-  sequence (unique).
-- **`Version`** gives optimistic concurrency: two clicks or two tabs cannot apply the same move twice.
-- Access is only through repository interfaces (`IUserRepository`, `IGameRepository`, `IEventRepository`), so the
-  rest of the code never touches the database driver.
+Design decisions, in plain words:
+- **Players and countries are embedded in the game document.** "Embedded" means they are stored *inside* the game
+  rather than in their own collections. They are small (ten countries), always used together with the game, and a
+  single save keeps them consistent.
+- **Events are a separate collection** because the list only grows. Each event gets a **sequence number** (1, 2, 3...),
+  so a client asks "give me events after number 41" and never downloads the history again. This also gives the
+  replay and live viewing for free.
+- **Indexes** are like the index of a book: they let the database find things quickly without reading everything.
+  They are created at start-up: unique username (no two accounts share a name); games by owner and date (for
+  *My games*); events by game and sequence (unique).
+- **`Version`** is a counter on the game that goes up on every save. If you double-click, or have two tabs open, the
+  second request carries an out-of-date number and is rejected, so a move can never be applied twice. (The technical
+  name is *optimistic concurrency*.)
+- Access is only through repository interfaces (`IUserRepository`, `IGameRepository`, `IEventRepository`). A
+  repository is the one class that talks to the database for one kind of data, so the rest of the code never touches
+  the database driver and the database could be swapped without changing the game rules.
 
 ## 7. Security
 
-| Protection | Where |
-|---|---|
-| Passwords stored as salted hashes (ASP.NET Core's password hasher), never in plain text | `AccountService` |
-| Sign-up rules checked on the server: username 3 to 20 letters, numbers or underscores; password 8 to 100 characters with a letter and a number | `AccountRules`, view-model attributes |
-| Cookie login: HttpOnly, SameSite, Secure outside development, 7-day sliding expiry | `Program.cs` |
-| Anti-forgery tokens on every form (sign-up, log in, log out, new game) | `AccountController`, `GameController` |
-| Login and sign-up attempts limited per IP address | rate limiter in `Program.cs` |
-| Reading a game is public, but **every move needs a login** and the service checks the caller owns the game | `GamesApiController`, `GameService` |
-| The move API accepts JSON only, so another website cannot post to it | `[Consumes("application/json")]` |
-| Visitors never see private data: the page receives a trimmed copy of the game, not the database record | `GameSnapshot` |
+| Protection | Where | What it stops, in plain words |
+|---|---|---|
+| Passwords stored as salted hashes (ASP.NET Core's password hasher), never in plain text | `AccountService` | Even someone who reads the database cannot see anyone's password. A *hash* scrambles it one way; a *salt* makes identical passwords look different. |
+| Sign-up rules checked on the server: username 3 to 20 letters, numbers or underscores; password 8 to 100 characters with a letter and a number | `AccountRules`, view-model attributes | Weak or strange input is refused, even if someone bypasses the web page. |
+| Cookie login: HttpOnly, SameSite, Secure outside development, 7-day sliding expiry | `Program.cs` | *HttpOnly*: scripts on the page cannot read the login cookie. *SameSite*: the cookie is not sent when another website triggers a request. *Secure*: it only travels over HTTPS. *Sliding expiry*: you stay signed in for 7 days from your last visit. |
+| Anti-forgery tokens on every form (sign-up, log in, log out, new game) | `AccountController`, `GameController` | A hidden one-time code proves the form came from this site, so another site cannot submit a form in your name. |
+| Login and sign-up attempts limited per IP address | rate limiter in `Program.cs` | Stops a program from trying thousands of passwords (10 attempts per minute per address). |
+| Reading a game is public, but **every move needs a login** and the service checks the caller owns the game | `GamesApiController`, `GameService` | Anyone can watch, but nobody can play someone else's game: no login gives 401, the wrong owner gives 403. |
+| The move API accepts JSON only, so another website cannot post to it | `[Consumes("application/json")]` | Ordinary forms from other sites cannot send JSON, which closes another door to forged requests. |
+| Visitors never see private data: the page receives a trimmed copy of the game, not the database record | `GameSnapshot` | The owner's account details never leave the server. |
 
 ## 8. The computer players and the AI
 
-**The NPC brain** (`NpcStrategy`) is the same for every computer player. It works from the *exact* probability of
-winning a fight (`Odds`, which works through every possible dice result), not from guesses:
+**The NPC brain** (`NpcStrategy`) is the same for every computer player. (NPC means non-player character: a computer
+player.) It works from the *exact* probability of winning a fight (`Odds`, which works through every possible dice
+result), not from guesses:
 
 1. **Reinforcements:** try each of its countries as a launch point, and put all the new soldiers where they set up the
    best attack. If no attack looks good enough, strengthen its weakest country.
@@ -198,11 +212,11 @@ or offline, built-in template text is used instead, so the game never waits or b
 | Database layer (separate, configured, appropriate, online) | `src/Geopolitics.Data`, interfaces, MongoDB Atlas, section 6 |
 | Connection to the database | `MongoContext`: connects and creates indexes when the app starts (see the start-up log) |
 | Design of the database | Section 6 |
-| Coding structure (framework, best practice) | ASP.NET Core **MVC**, four layers, dependency injection, section 5 |
+| Coding structure (framework, best practice) | ASP.NET Core **MVC** (Model-View-Controller: data, pages and the code between them kept apart), four layers, dependency injection (classes are handed what they need instead of building it themselves), section 5 |
 | Object-oriented concepts (classes, encapsulation) | repositories behind interfaces, `GameDoc`/`CountryState`/`PlayerState` classes, `GameSnapshot` records, services such as `GameService` and `AccountService`, `IDice` |
 | Data validation, controls, security | Section 7 |
 | Functionality; lists, searching, filtering, viewing | *My games*: list with **search** (date or status) and **status filter**; game view and public viewing; *Countries* tab with **search** (country or owner) and **owner filter**; *Players* tab; an always-visible roster of all ten countries |
-| User interface; ease of navigation | brick-wall site, 3D globe, chat-style side panel with tabs, navigation bar |
+| User interface; ease of navigation | brick-wall site, 3D globe, chat-style side panel with tabs, navigation bar, and a **Back to My games** link on the game page (shown to signed-in users) |
 | Authentication and authorisation | Section 7 |
 | Sophistication and complexity | battle engine, NPC odds and scoring, AI commentary with fallback, concurrency control, replay queue, 3D rendering |
 | AI application | `ClaudeCommentator` (section 8) |
@@ -226,13 +240,25 @@ rules, the AI commentary (with a fake web server) and the game snapshot. The bro
 
 ## 12. Deployment
 
-A `Dockerfile` is included, so any host that runs containers works (Render, Azure App Service, Fly.io, Railway, ...).
+"Deploying" means putting the game on a server so anyone can open it with a web address instead of running it on
+your own computer. A `Dockerfile` is included. It is a recipe that packages the app into a *container* (a sealed box
+that runs the same everywhere), so any host that runs containers works (Render, Azure App Service, Fly.io, Railway, ...).
 
-1. Build from the `Dockerfile` in the project folder.
-2. Set these environment variables:
-   `Mongo__ConnectionString`, `Mongo__DatabaseName`, `Anthropic__ApiKey` (optional),
-   `ASPNETCORE_FORWARDEDHEADERS_ENABLED=true` (the host handles HTTPS) and `ASPNETCORE_URLS=http://+:8080`.
-3. In MongoDB Atlas, allow the host's IP addresses (Network Access).
+Steps (the names of the buttons differ a little between hosts):
+
+1. Put the project on GitHub and connect that repository to the host. Choose to create a **web service** that builds
+   from the **Dockerfile** in the project folder (some hosts call this "Docker" as the runtime).
+2. Add these **environment variables** (settings the host passes to the app, so no secrets are stored in the code):
+   - `Mongo__ConnectionString`: the connection string from MongoDB Atlas
+   - `Mongo__DatabaseName`: for example `geopolitics`
+   - `Anthropic__ApiKey`: optional; without it the built-in commentary is used
+   - `ASPNETCORE_FORWARDEDHEADERS_ENABLED=true`: the host handles HTTPS
+   - `ASPNETCORE_URLS=http://+:8080`: the port the app listens on (the Dockerfile already sets this)
+3. In MongoDB Atlas, open **Network Access** and allow the host's IP addresses, otherwise the app cannot reach the
+   database. (Allowing `0.0.0.0/0` works for a short-lived exam project but lets any address attempt a connection, so
+   keep the database password strong.)
+4. Deploy, open the web address the host gives you, then sign up, play one full turn and check the commentary.
+5. Put that address and a demo login in section 13.
 
 ## 13. Settings, submission details and the hand-in zip
 
@@ -244,7 +270,8 @@ A `Dockerfile` is included, so any host that runs containers works (Render, Azur
 | `Startup:OpenBrowser` | open the browser at start-up (on in Development, off otherwise) | `Startup__OpenBrowser=true` or `false` |
 
 To set up your own copy, copy `src/Geopolitics.Web/appsettings.Submission.example.json` to `appsettings.Submission.json`
-and fill it in (that file is git-ignored). If the database setting is missing, the app says so and stops.
+and fill it in (that file is git-ignored, so your passwords never reach GitHub). If the database setting is missing,
+the app says so and stops.
 
 **Making the zip to hand in:**
 
@@ -274,6 +301,7 @@ or `.git`.
 | The port is already in use | Run `dotnet run --project src/Geopolitics.Web --urls http://localhost:5050` |
 | Can't connect to the database | Check the internet connection and that your IP address is allowed in MongoDB Atlas (Network Access). |
 | Commentary looks plain | No Anthropic key is set, so the built-in text is used. The game works the same. |
+| A warning about an "https port for redirect" in the console | Harmless when running locally over plain http. It only means the redirect to https is skipped. |
 
 ## 15. Folder map
 
@@ -285,6 +313,31 @@ tools/                   scripts that generate the artwork and the hand-in zip
 docs/images/             pictures used by this README
 Dockerfile               for deployment
 ```
+
+## 16. Credits
+
+Three.js (MIT), flag-icons (MIT), world-atlas map data (ISC), Permanent Marker font (Apache 2.0). Anthropic's Claude writes
+the commentary. The soldier and dice artwork, brick walls and globe are drawn in code (see `tools/`).
+
+## 17. In plain words
+
+| Word | What it means here |
+|---|---|
+| **NPC** | A computer-controlled player. |
+| **Server / browser** | The server is the program that holds the rules and the data; the browser is your window onto it. |
+| **API** | The menu of requests the browser can send to the server (for example "roll the dice"). |
+| **JSON** | A simple text format for sending data between browser and server. |
+| **MongoDB / NoSQL** | A database that stores whole documents instead of rows in tables. |
+| **Atlas** | MongoDB's online hosting, so the database is reachable from anywhere. |
+| **Repository** | The one class that reads and writes one kind of data in the database. |
+| **Interface** | A promise of what a class can do, without saying how. It lets tests swap in a fake (such as fixed dice). |
+| **Dependency injection** | Classes are given the things they need instead of creating them, which makes them easy to test and swap. |
+| **MVC** | Model-View-Controller: data, pages and the code that connects them are kept in separate places. |
+| **Hash and salt** | A one-way scramble of a password, plus a random extra so the same password never looks the same twice. |
+| **Cookie** | A small note the browser keeps so the site knows you are still logged in. |
+| **Rate limit** | A cap on how many tries one address gets per minute. |
+| **Container / Docker** | A sealed package of the app that runs the same on any host. |
+| **Environment variable** | A setting given to the app from outside, used to keep secrets out of the code. |
 
 ## Author
 
