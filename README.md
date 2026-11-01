@@ -240,8 +240,7 @@ rules, the AI commentary (with a fake web server) and the game snapshot. The bro
 
 ## 12. Deployment
 
-"Deploying" means putting the game on a server so anyone can open it with a web address instead of running it on
-your own computer. A `Dockerfile` is included. It is a recipe that packages the app into a *container* (a sealed box
+ A `Dockerfile` is included. It is a recipe that packages the app into a *container* (a sealed box
 that runs the same everywhere), so any host that runs containers works (Render, Azure App Service, Fly.io, Railway, ...).
 
 Steps (the names of the buttons differ a little between hosts):
@@ -283,7 +282,7 @@ node tools/make-submission.js            # add --with-ai-key to include the Anth
 This writes `submission/Geopolitics-INF4001.zip`: every committed file plus the database settings, without `bin`, `obj`
 or `.git`.
 
-**Submission details (to complete before handing in):**
+**Submission details:**
 
 - **Deployed site:** `https://geopolitics-game-9oxl.onrender.com`
 - **Application login for the markers:** user `marker` / password `Marker2027Demo`
